@@ -1,11 +1,12 @@
-const CACHE_NAME = 'tradejournal-v1';
+const CACHE_NAME = 'tradejournal-v2';
+const BASE = 'https://panpanaz.github.io/tradejournal/';
 
 // Resources to cache on install
 const PRECACHE_URLS = [
-  './tradejournal.html',
-  './manifest.json',
-  './icon-192.png',
-  './icon-512.png',
+  BASE + 'tradejournal.html',
+  BASE + 'manifest.json',
+  BASE + 'icon-192.png',
+  BASE + 'icon-512.png',
   'https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js',
   'https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js',
   'https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js',
@@ -77,7 +78,7 @@ self.addEventListener('fetch', event => {
       }).catch(() => {
         // Offline fallback: return cached HTML
         if (event.request.mode === 'navigate') {
-          return caches.match('./tradejournal.html');
+          return caches.match(BASE + 'tradejournal.html');
         }
       });
     })
