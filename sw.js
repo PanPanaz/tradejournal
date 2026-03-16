@@ -1,4 +1,4 @@
-const CACHE_NAME = 'tradejournal-v2';
+const CACHE_NAME = 'tradejournal-v3';
 const BASE = 'https://panpanaz.github.io/tradejournal/';
 
 // Resources to cache on install
