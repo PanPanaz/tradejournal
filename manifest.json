@@ -2,7 +2,8 @@
   "name": "TradeJournal PRO",
   "short_name": "TradeJournal",
   "description": "Journal de trading professionnel — suivez, analysez et améliorez vos performances",
-  "start_url": "./tradejournal.html",
+  "start_url": "https://panpanaz.github.io/tradejournal/tradejournal.html",
+  "scope": "https://panpanaz.github.io/tradejournal/",
   "display": "standalone",
   "orientation": "any",
   "background_color": "#F2F4F7",
@@ -28,13 +29,13 @@
       "name": "Nouveau Trade",
       "short_name": "Nouveau",
       "description": "Enregistrer un nouveau trade",
-      "url": "./tradejournal.html#nouveau"
+      "url": "https://panpanaz.github.io/tradejournal/tradejournal.html#nouveau"
     },
     {
       "name": "Dashboard",
       "short_name": "Dashboard",
       "description": "Voir le tableau de bord",
-      "url": "./tradejournal.html#dashboard"
+      "url": "https://panpanaz.github.io/tradejournal/tradejournal.html#dashboard"
     }
   ]
 }
