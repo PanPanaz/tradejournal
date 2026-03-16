@@ -21,7 +21,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500;600&family=Lora:wght@500&display=swap" rel="stylesheet">
 <style>
   /* Override digits globally with Lora via unicode-range font-face */
@@ -2100,7 +2100,7 @@ function Parametres({ accounts, setAccounts, activeAccountId, setActiveAccountId
               try {
                 const data = JSON.parse(ev.target.result);
                 if (!data.accounts || !Array.isArray(data.accounts)) { showToast('Fichier invalide'); return; }
-                const user = getCurrentUser();
+                const user = currentUser;
                 // Import each account and its trades into Supabase
                 for (const acc of data.accounts) {
                   const { data: newAcc } = await supabase.from('accounts')
@@ -2144,11 +2144,6 @@ const SUPABASE_KEY = 'sb_publishable_xgke_frbQeTzbaxj9cV4Jg_YktV2YrH';
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // --- AUTH SCREENS ---
-// Global user store — avoids prop-passing issues on mobile
-let _currentUser = null;
-const getCurrentUser = () => _currentUser;
-const storeUser = (user) => { _currentUser = user; };
-
 function AuthScreen({ onAuth }) {
   const [mode, setMode] = useState('login'); // 'login' | 'register' | 'reset'
   const [email, setEmail] = useState('');
@@ -2167,7 +2162,6 @@ function AuthScreen({ onAuth }) {
     const { data, error: err } = await supabase.auth.signInWithPassword({ email, password });
     setLoading(false);
     if (err) { setError(err.message === 'Invalid login credentials' ? 'Email ou mot de passe incorrect' : err.message); return; }
-    storeUser(data.user);
     onAuth(data.user);
   };
 
@@ -2345,13 +2339,15 @@ function AuthScreen({ onAuth }) {
   );
 }
 
-function AuthGate() {
+function AuthGate({ children }) {
   const [authenticated, setAuthenticated] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     supabase.auth.signOut().finally(() => {
-      storeUser(null);
+      setAuthenticated(false);
+      setCurrentUser(null);
       setLoading(false);
     });
   }, []);
@@ -2369,24 +2365,17 @@ function AuthGate() {
     );
   }
 
-  if (!authenticated) {
-    return <AuthScreen onAuth={(user) => {
-      storeUser(user);
-      setAuthenticated(true);
-    }} />;
-  }
-
-  return <App onLogout={() => { storeUser(null); setAuthenticated(false); }} />;
+  if (!authenticated) return <AuthScreen onAuth={(user) => { setCurrentUser(user); setAuthenticated(true); }} />;
+  return React.cloneElement(children, { onLogout: () => { setAuthenticated(false); setCurrentUser(null); }, currentUser });
 }
 
-function App({ onLogout }) {
+function App({ onLogout, currentUser }) {
   const [page, setPage] = useState('dashboard');
   const [accounts, setAccounts] = useState([]);
   const [activeAccountId, setActiveAccountId] = useState(null);
   const [savedStrategies, setSavedStrategies] = useState([]);
   const [editTrade, setEditTrade] = useState(null);
   const [dbLoading, setDbLoading] = useState(true);
-  const [debugStatus, setDebugStatus] = useState('init');
 
   const [theme, setTheme] = useState(() => localStorage.getItem('tj_theme') || 'light');
 
@@ -2395,33 +2384,19 @@ function App({ onLogout }) {
     document.body.classList.toggle('dark', theme === 'dark');
   }, [theme]);
 
+  // Load all data from Supabase on mount — use currentUser passed from AuthGate
   useEffect(() => {
-    // Small delay to ensure storeUser() has been called before this runs
-    const timer = setTimeout(() => {
-      const user = getCurrentUser();
-      if (user) {
-        setDebugStatus('user: ' + user.email);
-        loadAllData(user);
-      } else {
-        setDebugStatus('no user found');
-        setDbLoading(false);
-      }
-    }, 50);
-    return () => clearTimeout(timer);
-  }, []);
+    if (currentUser) loadAllData(currentUser);
+  }, [currentUser]);
 
   const loadAllData = async (user) => {
     setDbLoading(true);
-    setDebugStatus('fetching accounts...');
     try {
       // Load accounts
-      const { data: accs, error: accsErr } = await supabase
+      const { data: accs } = await supabase
         .from('accounts')
         .select('*')
         .order('created_at', { ascending: true });
-
-      if (accsErr) { setDebugStatus('error: ' + accsErr.message); setDbLoading(false); return; }
-      setDebugStatus('accounts ok, loading trades...');
 
       // Load trades
       const { data: trds } = await supabase
@@ -2429,25 +2404,19 @@ function App({ onLogout }) {
         .select('*')
         .order('created_at', { ascending: true });
 
-      setDebugStatus('trades ok, loading strategies...');
-
       // Load strategies
       const { data: strats } = await supabase
         .from('strategies')
         .select('*')
         .order('created_at', { ascending: true });
 
-      setDebugStatus('all loaded, rendering...');
-
       if (!accs || accs.length === 0) {
         // First login — create default account
-        const { data: newAcc, error: newAccErr } = await supabase
+        const { data: newAcc } = await supabase
           .from('accounts')
           .insert({ user_id: user.id, name: 'Compte Principal', initial_capital: 10000, currency: 'EUR' })
           .select()
           .single();
-
-        if (newAccErr) { setDebugStatus('error creating account: ' + newAccErr.message); setDbLoading(false); return; }
 
         const defaultStrats = ['Breakout', 'Scalping', 'Swing', 'ICT', 'Mean Reversion'];
         await supabase.from('strategies').insert(
@@ -2494,7 +2463,6 @@ function App({ onLogout }) {
         setSavedStrategies((strats || []).map(s => s.name));
       }
     } catch (err) {
-      setDebugStatus('catch error: ' + err.message);
       console.error('Error loading data:', err);
     }
     setDbLoading(false);
@@ -2504,7 +2472,7 @@ function App({ onLogout }) {
   const addAccount = async (name, initialCapital, currency) => {
     const { data: newAcc } = await supabase
       .from('accounts')
-      .insert({ user_id: getCurrentUser().id, name, initial_capital: parseFloat(initialCapital) || 0, currency })
+      .insert({ user_id: currentUser.id, name, initial_capital: parseFloat(initialCapital) || 0, currency })
       .select().single();
     const mapped = { id: newAcc.id, name: newAcc.name, initialCapital: newAcc.initial_capital, currency: newAcc.currency, trades: [] };
     setAccounts(prev => [...prev, mapped]);
@@ -2531,7 +2499,7 @@ function App({ onLogout }) {
 
   // --- TRADE OPERATIONS ---
   const setTrades = async (updater) => {
-    const user = getCurrentUser();
+    const user = currentUser;
     const currentTrades = accounts.find(a => a.id === activeAccountId)?.trades || [];
     const newTrades = typeof updater === 'function' ? updater(currentTrades) : updater;
 
@@ -2594,7 +2562,7 @@ function App({ onLogout }) {
 
   // --- STRATEGY OPERATIONS ---
   const handleSetSavedStrategies = async (updater) => {
-    const user = getCurrentUser();
+    const user = currentUser;
     const newStrats = typeof updater === 'function' ? updater(savedStrategies) : updater;
 
     // Delete all and re-insert (simpler approach)
@@ -2614,7 +2582,6 @@ function App({ onLogout }) {
           </svg>
         </div>
         <div style={{color:'var(--muted)', fontSize:14}}>Chargement de vos données...</div>
-        <div style={{color:'#6B7280', fontSize:11, fontFamily:'monospace', background:'#1A1D27', padding:'6px 12px', borderRadius:8}}>{debugStatus}</div>
       </div>
     );
   }
@@ -2741,7 +2708,9 @@ function App({ onLogout }) {
   );
 }
 
-ReactDOM.createRoot(document.getElementById('root')).render(<AuthGate />);
+ReactDOM.createRoot(document.getElementById('root')).render(
+  <AuthGate><App /></AuthGate>
+);
 </script>
 
 <script>
