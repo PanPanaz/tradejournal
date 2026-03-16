@@ -4,22 +4,18 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>TradeJournal PRO</title>
-
-<!-- PWA -->
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#2563EB" id="theme-color-meta">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="TradeJournal">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="description" content="Journal de trading professionnel">
 <link rel="apple-touch-icon" href="icon-192.png">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500;600&family=Lora:wght@500&display=swap" rel="stylesheet">
 <style>
   /* Override digits globally with Lora via unicode-range font-face */
@@ -284,7 +280,7 @@
   @media (min-width: 768px) {
     body { overflow: hidden; }
     .app { max-width: 100%; flex-direction: row; height: 100vh; overflow: hidden; }
-    .desktop-sidebar { width: 220px; flex-shrink: 0; background: var(--card); border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 24px 16px 20px; height: 100vh; position: sticky; top: 0; overflow-y: auto; transition: background 0.3s, border-color 0.3s; }
+    .desktop-sidebar { width: 220px; flex-shrink: 0; background: var(--card); border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 24px 16px 20px; height: 100vh; position: sticky; top: 0; overflow-y: auto; }
     .sidebar-brand { display: flex; align-items: center; gap: 10px; margin-bottom: 28px; padding: 0 4px; }
     .sidebar-brand-icon { width: 34px; height: 34px; background: var(--blue); border-radius: 10px; display: flex; align-items: center; justify-content: center; color: white; font-size: 16px; flex-shrink: 0; }
     .sidebar-brand-text { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 15px; color: var(--text); line-height: 1.1; }
@@ -294,7 +290,7 @@
     .sidebar-nav-item.active { background: var(--blue); color: white; font-weight: 600; }
     .sidebar-nav-icon { display: flex; align-items: center; width: 20px; flex-shrink: 0; }
     .desktop-main { flex: 1; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
-    .desktop-topbar { padding: 16px 28px 12px; background: var(--bg); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; transition: background 0.3s; }
+    .desktop-topbar { padding: 16px 28px 12px; background: var(--bg); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
     .desktop-scroll { flex: 1; overflow-y: auto; padding: 24px 28px 32px; }
     .bottom-nav { display: none; }
     .content { padding: 0; max-width: 900px; width: 100%; margin: 0 auto; }
@@ -1701,7 +1697,7 @@ function Analyses({ trades, theme }) {
 }
 
 // --- PARAMÈTRES MULTI-COMPTE ---
-function Parametres({ accounts, setAccounts, activeAccountId, setActiveAccountId, theme, setTheme, savedStrategies, setSavedStrategies, onLogout }) {
+function Parametres({ accounts, setAccounts, activeAccountId, setActiveAccountId, theme, setTheme, savedStrategies, setSavedStrategies }) {
   const [editingId, setEditingId] = useState(null);
   const [editForm, setEditForm] = useState({});
   const [newForm, setNewForm] = useState({ name: '', initialCapital: '', currency: 'EUR' });
@@ -2010,7 +2006,7 @@ function Parametres({ accounts, setAccounts, activeAccountId, setActiveAccountId
 
       <div className="settings-card">
         <div className="settings-title">Session</div>
-        <button className="btn-logout" onClick={async () => { await supabase.auth.signOut(); if(onLogout) onLogout(); }}>↪ Se déconnecter</button>
+        <button className="btn-logout">↪ Se déconnecter</button>
       </div>
       {toast && <div className="toast">{toast}</div>}
     </div>
@@ -2018,167 +2014,7 @@ function Parametres({ accounts, setAccounts, activeAccountId, setActiveAccountId
 }
 
 // --- APP ---
-// --- SUPABASE AUTH (login only — data stays in localStorage) ---
-const SUPABASE_URL = 'https://qnzjtjabhugnuannsdcw.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_xgke_frbQeTzbaxj9cV4Jg_YktV2YrH';
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-
-function AuthScreen({ onAuth }) {
-  const [mode, setMode] = useState('login');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
-  const [showPwd, setShowPwd] = useState(false);
-
-  const resetMsg = () => { setError(''); setSuccess(''); };
-
-  const handleLogin = async () => {
-    if (!email || !password) { setError('Remplissez tous les champs'); return; }
-    setLoading(true); resetMsg();
-    const { error: err } = await supabase.auth.signInWithPassword({ email, password });
-    setLoading(false);
-    if (err) { setError(err.message === 'Invalid login credentials' ? 'Email ou mot de passe incorrect' : err.message); return; }
-    onAuth();
-  };
-
-  const handleRegister = async () => {
-    if (!email || !password || !confirmPassword) { setError('Remplissez tous les champs'); return; }
-    if (password !== confirmPassword) { setError('Les mots de passe ne correspondent pas'); return; }
-    if (password.length < 6) { setError('Le mot de passe doit faire au moins 6 caractères'); return; }
-    setLoading(true); resetMsg();
-    const { data, error: err } = await supabase.auth.signUp({ email, password });
-    setLoading(false);
-    if (err) { setError(err.message); return; }
-    if (data?.user?.identities?.length === 0) { setError('Un compte existe déjà avec cet email'); return; }
-    setSuccess('Compte créé ! Vérifiez votre email puis connectez-vous.');
-    setMode('login');
-  };
-
-  const handleReset = async () => {
-    if (!email) { setError('Entrez votre adresse email'); return; }
-    setLoading(true); resetMsg();
-    const { error: err } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: 'https://panpanaz.github.io/tradejournal/tradejournal.html'
-    });
-    setLoading(false);
-    if (err) { setError(err.message); return; }
-    setSuccess('Email de réinitialisation envoyé !');
-  };
-
-  const handleKey = (e) => {
-    if (e.key !== 'Enter') return;
-    if (mode === 'login') handleLogin();
-    else if (mode === 'register') handleRegister();
-    else handleReset();
-  };
-
-  const inputStyle = { width:'100%', padding:'12px 14px', background:'#13161F', border:'1.5px solid #2A2D3A', borderRadius:10, color:'white', fontSize:14, outline:'none', boxSizing:'border-box', fontFamily:"'DM Sans',sans-serif" };
-
-  return (
-    <div style={{minHeight:'100vh', background:'linear-gradient(135deg,#0F1117 0%,#1A1D27 50%,#0F1117 100%)', display:'flex', alignItems:'center', justifyContent:'center', padding:'20px', fontFamily:"'DM Sans',sans-serif"}}>
-      <div style={{width:'100%', maxWidth:400}}>
-        <div style={{textAlign:'center', marginBottom:40}}>
-          <div style={{width:64, height:64, background:'#2563EB', borderRadius:18, display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 16px', boxShadow:'0 8px 32px rgba(37,99,235,0.4)'}}>
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-          </div>
-          <div style={{fontFamily:"'Syne',sans-serif", fontWeight:800, fontSize:26, color:'white'}}>TradeJournal</div>
-          <div style={{fontSize:12, fontWeight:700, letterSpacing:'2px', color:'#2563EB', textTransform:'uppercase', marginTop:2}}>PRO</div>
-        </div>
-
-        <div style={{background:'#1A1D27', borderRadius:20, padding:'32px 28px', border:'1px solid #2A2D3A', boxShadow:'0 24px 64px rgba(0,0,0,0.4)'}}>
-          {mode !== 'reset' && (
-            <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', background:'#13161F', borderRadius:12, padding:4, marginBottom:28, gap:4}}>
-              {[['login','Connexion'],['register','Inscription']].map(([m,l]) => (
-                <button key={m} onClick={() => { setMode(m); resetMsg(); setPassword(''); setConfirmPassword(''); }}
-                  style={{padding:'9px', borderRadius:9, border:'none', cursor:'pointer', fontFamily:"'Syne',sans-serif", fontWeight:700, fontSize:13, transition:'all 0.2s', background: mode===m ? '#2563EB' : 'transparent', color: mode===m ? 'white' : '#6B7280'}}>
-                  {l}
-                </button>
-              ))}
-            </div>
-          )}
-          {mode === 'reset' && (
-            <div style={{marginBottom:24}}>
-              <button onClick={() => { setMode('login'); resetMsg(); }} style={{background:'none', border:'none', color:'#6B7280', cursor:'pointer', fontSize:13, padding:0}}>← Retour</button>
-              <div style={{fontFamily:"'Syne',sans-serif", fontWeight:800, fontSize:20, color:'white', marginTop:12}}>Mot de passe oublié</div>
-            </div>
-          )}
-
-          <div style={{display:'flex', flexDirection:'column', gap:14}}>
-            <div>
-              <label style={{fontSize:12, fontWeight:600, color:'#9CA3AF', display:'block', marginBottom:6}}>Adresse email</label>
-              <input type="email" value={email} onChange={e=>setEmail(e.target.value)} onKeyDown={handleKey} placeholder="vous@exemple.com" autoComplete="email" style={inputStyle}
-                onFocus={e=>e.target.style.borderColor='#2563EB'} onBlur={e=>e.target.style.borderColor='#2A2D3A'} />
-            </div>
-            {mode !== 'reset' && (
-              <div>
-                <label style={{fontSize:12, fontWeight:600, color:'#9CA3AF', display:'block', marginBottom:6}}>Mot de passe</label>
-                <div style={{position:'relative'}}>
-                  <input type={showPwd?'text':'password'} value={password} onChange={e=>setPassword(e.target.value)} onKeyDown={handleKey} placeholder="••••••••"
-                    autoComplete={mode==='login'?'current-password':'new-password'}
-                    style={{...inputStyle, paddingRight:44}}
-                    onFocus={e=>e.target.style.borderColor='#2563EB'} onBlur={e=>e.target.style.borderColor='#2A2D3A'} />
-                  <button onClick={()=>setShowPwd(v=>!v)} style={{position:'absolute', right:12, top:'50%', transform:'translateY(-50%)', background:'none', border:'none', color:'#6B7280', cursor:'pointer', fontSize:16, padding:0}}>{showPwd?'🙈':'👁'}</button>
-                </div>
-              </div>
-            )}
-            {mode === 'register' && (
-              <div>
-                <label style={{fontSize:12, fontWeight:600, color:'#9CA3AF', display:'block', marginBottom:6}}>Confirmer le mot de passe</label>
-                <input type={showPwd?'text':'password'} value={confirmPassword} onChange={e=>setConfirmPassword(e.target.value)} onKeyDown={handleKey} placeholder="••••••••" autoComplete="new-password" style={inputStyle}
-                  onFocus={e=>e.target.style.borderColor='#2563EB'} onBlur={e=>e.target.style.borderColor='#2A2D3A'} />
-              </div>
-            )}
-          </div>
-
-          {error && <div style={{marginTop:16, padding:'10px 14px', background:'rgba(220,38,38,0.12)', border:'1px solid rgba(220,38,38,0.3)', borderRadius:10, fontSize:13, color:'#FCA5A5'}}>⚠️ {error}</div>}
-          {success && <div style={{marginTop:16, padding:'10px 14px', background:'rgba(22,163,74,0.12)', border:'1px solid rgba(22,163,74,0.3)', borderRadius:10, fontSize:13, color:'#86EFAC'}}>✅ {success}</div>}
-
-          <button onClick={mode==='login'?handleLogin:mode==='register'?handleRegister:handleReset} disabled={loading}
-            style={{width:'100%', padding:'13px', marginTop:20, background:loading?'#1E3A5F':'#2563EB', color:'white', border:'none', borderRadius:12, fontFamily:"'Syne',sans-serif", fontWeight:700, fontSize:15, cursor:loading?'not-allowed':'pointer', boxShadow:loading?'none':'0 4px 20px rgba(37,99,235,0.35)', transition:'all 0.2s'}}>
-            {loading ? '...' : mode==='login' ? 'Se connecter →' : mode==='register' ? 'Créer mon compte →' : 'Envoyer le lien →'}
-          </button>
-
-          {mode === 'login' && (
-            <div style={{textAlign:'center', marginTop:16}}>
-              <button onClick={()=>{setMode('reset');resetMsg();}} style={{background:'none', border:'none', color:'#6B7280', cursor:'pointer', fontSize:13, textDecoration:'underline'}}>Mot de passe oublié ?</button>
-            </div>
-          )}
-        </div>
-        <div style={{textAlign:'center', marginTop:24, fontSize:12, color:'#4B5563'}}>Vos données sont chiffrées et sécurisées</div>
-      </div>
-      <style>{`@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}} input::placeholder{color:#4B5563!important}`}</style>
-    </div>
-  );
-}
-
-function AuthGate() {
-  const [authenticated, setAuthenticated] = useState(false);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    // Force sign out on every load — always show login screen
-    supabase.auth.signOut().finally(() => setLoading(false));
-  }, []);
-
-  if (loading) {
-    return (
-      <div style={{minHeight:'100vh', background:'#0F1117', display:'flex', alignItems:'center', justifyContent:'center', flexDirection:'column', gap:16}}>
-        <div style={{width:48, height:48, background:'#2563EB', borderRadius:14, display:'flex', alignItems:'center', justifyContent:'center'}}>
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-        </div>
-        <div style={{color:'#6B7280', fontSize:14}}>Chargement...</div>
-      </div>
-    );
-  }
-
-  if (!authenticated) return <AuthScreen onAuth={() => setAuthenticated(true)} />;
-  return <App onLogout={() => setAuthenticated(false)} />;
-}
-
-function App({ onLogout }) {
+function App() {
   const [page, setPage] = useState('dashboard');
 
   const [accounts, setAccounts] = useState(() => {
@@ -2261,7 +2097,7 @@ function App({ onLogout }) {
       {page === 'trades' && <MesTrades trades={trades} setTrades={setTrades} setPage={setPage} setEditTrade={setEditTrade} />}
       {page === 'nouveau' && <NouveauTrade trades={trades} setTrades={setTrades} setPage={setPage} editTrade={editTrade} savedStrategies={savedStrategies} setSavedStrategies={setSavedStrategies} />}
       {page === 'analyses' && <Analyses trades={trades} theme={theme} />}
-      {page === 'parametres' && <Parametres accounts={accounts} setAccounts={setAccounts} activeAccountId={activeAccountId} setActiveAccountId={setActiveAccountId} theme={theme} setTheme={setTheme} savedStrategies={savedStrategies} setSavedStrategies={setSavedStrategies} onLogout={onLogout} />}
+      {page === 'parametres' && <Parametres accounts={accounts} setAccounts={setAccounts} activeAccountId={activeAccountId} setActiveAccountId={setActiveAccountId} theme={theme} setTheme={setTheme} savedStrategies={savedStrategies} setSavedStrategies={setSavedStrategies} />}
     </>
   );
 
@@ -2304,7 +2140,7 @@ function App({ onLogout }) {
               <span style={{fontSize:12,color:'var(--muted)'}}>{trades.length} trades</span>
               <div style={{width:1,height:16,background:'var(--border)'}} />
               <span style={{fontSize:12,fontWeight:600,color:trades.reduce((s,t)=>s+t.pnl,0)>=0?'var(--green)':'var(--red)'}}>
-                {trades.length ? (trades.reduce((s,t)=>s+t.pnl,0)>=0?'+':'')+trades.reduce((s,t)=>s+t.pnl,0).toFixed(2)+' €' : '0.00 €'}
+                {trades.length?(trades.reduce((s,t)=>s+t.pnl,0)>=0?'+':'')+trades.reduce((s,t)=>s+t.pnl,0).toFixed(2)+' €':'0.00 €'}
               </span>
             </div>
           </div>
@@ -2342,8 +2178,7 @@ function App({ onLogout }) {
   );
 }
 
-ReactDOM.createRoot(document.getElementById('root')).render(<AuthGate />);
-
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
 </script>
 
 <script>
@@ -2352,11 +2187,11 @@ if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('./sw.js').catch(err => console.warn('[SW]', err));
   });
 }
-const observer = new MutationObserver(() => {
+const themeObserver = new MutationObserver(() => {
   const meta = document.getElementById('theme-color-meta');
   if (meta) meta.content = document.body.classList.contains('dark') ? '#0F1117' : '#2563EB';
 });
-observer.observe(document.body, { attributes: true, attributeFilter: ['class'] });
+themeObserver.observe(document.body, { attributes: true, attributeFilter: ['class'] });
 </script>
 </body>
 </html>
