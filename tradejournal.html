@@ -1806,7 +1806,7 @@ function Analyses({ trades, theme }) {
   );
 }
 
-function Parametres({ accounts, setAccounts, activeAccountId, setActiveAccountId, theme, setTheme, savedStrategies, setSavedStrategies, onLogout }) {
+function Parametres({ accounts, setAccounts, activeAccountId, setActiveAccountId, theme, setTheme, savedStrategies, setSavedStrategies, onLogout, addAccount, updateAccount, deleteAccount: deleteAccountDB }) {
   const [editingId, setEditingId] = useState(null);
   const [editForm, setEditForm] = useState({});
   const [newForm, setNewForm] = useState({ name: '', initialCapital: '', currency: 'EUR' });
@@ -1819,25 +1819,23 @@ function Parametres({ accounts, setAccounts, activeAccountId, setActiveAccountId
 
   const startEdit = acc => { setEditingId(acc.id); setEditForm({ name: acc.name, initialCapital: acc.initialCapital, currency: acc.currency }); };
 
-  const saveEdit = () => {
-    setAccounts(prev => prev.map(a => a.id === editingId ? { ...a, name: editForm.name, initialCapital: parseFloat(editForm.initialCapital)||0, currency: editForm.currency } : a));
+  const saveEdit = async () => {
+    await updateAccount(editingId, editForm);
     setEditingId(null);
     showToast('Compte mis à jour !');
   };
 
-  const createAccount = () => {
+  const createAccount = async () => {
     if (!newForm.name.trim()) { showToast('Entrez un nom de compte'); return; }
-    const newAcc = { id: 'acc_' + Date.now(), name: newForm.name.trim(), initialCapital: parseFloat(newForm.initialCapital)||0, currency: newForm.currency || 'EUR', trades: [] };
-    setAccounts(prev => [...prev, newAcc]);
+    await addAccount(newForm.name.trim(), newForm.initialCapital, newForm.currency || 'EUR');
     setNewForm({ name: '', initialCapital: '', currency: 'EUR' });
     setShowNew(false);
     showToast('Compte créé !');
   };
 
-  const deleteAccount = id => {
+  const handleDeleteAccount = async id => {
     if (accounts.length === 1) { showToast('Impossible de supprimer le dernier compte'); return; }
-    setAccounts(prev => prev.filter(a => a.id !== id));
-    if (activeAccountId === id) setActiveAccountId(accounts.find(a => a.id !== id)?.id);
+    await deleteAccountDB(id);
     setConfirmDelete(null);
     showToast('Compte supprimé');
   };
@@ -1941,7 +1939,7 @@ function Parametres({ accounts, setAccounts, activeAccountId, setActiveAccountId
             <div style={{fontSize:14,color:'var(--muted)',marginBottom:20}}>Tous les trades associés seront définitivement supprimés.</div>
             <div className="btn-row">
               <button className="btn-cancel" onClick={() => setConfirmDelete(null)}>Annuler</button>
-              <button style={{background:'var(--red)',color:'white',border:'none',borderRadius:12,padding:'13px 20px',fontFamily:"'DM Sans',sans-serif",fontSize:15,fontWeight:600,cursor:'pointer',flex:1}} onClick={() => deleteAccount(confirmDelete)}>Supprimer</button>
+              <button style={{background:'var(--red)',color:'white',border:'none',borderRadius:12,padding:'13px 20px',fontFamily:"'DM Sans',sans-serif",fontSize:15,fontWeight:600,cursor:'pointer',flex:1}} onClick={() => handleDeleteAccount(confirmDelete)}>Supprimer</button>
             </div>
           </div>
         </div>
@@ -2094,17 +2092,35 @@ function Parametres({ accounts, setAccounts, activeAccountId, setActiveAccountId
         </button>
         <label style={{display:'flex', alignItems:'center', justifyContent:'center', gap:8, background:'var(--bg)', color:'var(--text)', border:'1.5px solid var(--border)', borderRadius:12, padding:'12px', fontFamily:"'DM Sans',sans-serif", fontSize:14, fontWeight:600, cursor:'pointer', width:'100%'}}>
           ⬆ Importer une sauvegarde
-          <input type="file" accept=".json" style={{display:'none'}} onChange={e => {
+          <input type="file" accept=".json" style={{display:'none'}} onChange={async e => {
             const file = e.target.files[0];
             if (!file) return;
             const reader = new FileReader();
-            reader.onload = ev => {
+            reader.onload = async ev => {
               try {
                 const data = JSON.parse(ev.target.result);
                 if (!data.accounts || !Array.isArray(data.accounts)) { showToast('Fichier invalide'); return; }
-                setAccounts(data.accounts);
-                if (data.activeAccountId) setActiveAccountId(data.activeAccountId);
-                showToast('Données importées !');
+                const user = getCurrentUser();
+                // Import each account and its trades into Supabase
+                for (const acc of data.accounts) {
+                  const { data: newAcc } = await supabase.from('accounts')
+                    .insert({ user_id: user.id, name: acc.name, initial_capital: acc.initialCapital || 10000, currency: acc.currency || 'EUR' })
+                    .select().single();
+                  if (newAcc && acc.trades?.length) {
+                    await supabase.from('trades').insert(acc.trades.map(t => ({
+                      account_id: newAcc.id, user_id: user.id,
+                      instrument: t.instrument, asset: t.asset, direction: t.direction,
+                      qty: t.qty, entry: t.entry, exit: t.exit,
+                      entry_date: t.entryDate, exit_date: t.exitDate,
+                      pnl: t.pnl, fees: t.fees, strategy: t.strategy,
+                      rating: t.rating, notes: t.notes, psychology: t.psychology,
+                      manual_pnl: t.manualPnl, pip_value: t.pipValue,
+                      point_value: t.pointValue, premium: t.premium, images: t.images || [],
+                    })));
+                  }
+                }
+                showToast('Import réussi ! Rechargement...');
+                setTimeout(() => window.location.reload(), 1500);
               } catch { showToast('Erreur lors de l\'import'); }
             };
             reader.readAsText(file);
@@ -2128,6 +2144,11 @@ const SUPABASE_KEY = 'sb_publishable_xgke_frbQeTzbaxj9cV4Jg_YktV2YrH';
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // --- AUTH SCREENS ---
+// Global user store — avoids prop-passing issues on mobile
+let _currentUser = null;
+const getCurrentUser = () => _currentUser;
+const storeUser = (user) => { _currentUser = user; };
+
 function AuthScreen({ onAuth }) {
   const [mode, setMode] = useState('login'); // 'login' | 'register' | 'reset'
   const [email, setEmail] = useState('');
@@ -2146,6 +2167,7 @@ function AuthScreen({ onAuth }) {
     const { data, error: err } = await supabase.auth.signInWithPassword({ email, password });
     setLoading(false);
     if (err) { setError(err.message === 'Invalid login credentials' ? 'Email ou mot de passe incorrect' : err.message); return; }
+    storeUser(data.user);
     onAuth(data.user);
   };
 
@@ -2323,14 +2345,13 @@ function AuthScreen({ onAuth }) {
   );
 }
 
-function AuthGate({ children }) {
+function AuthGate() {
   const [authenticated, setAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Always clear any existing Supabase session on load
     supabase.auth.signOut().finally(() => {
-      setAuthenticated(false);
+      storeUser(null);
       setLoading(false);
     });
   }, []);
@@ -2348,68 +2369,258 @@ function AuthGate({ children }) {
     );
   }
 
-  if (!authenticated) return <AuthScreen onAuth={() => setAuthenticated(true)} />;
-  return React.cloneElement(children, { onLogout: () => setAuthenticated(false) });
+  if (!authenticated) {
+    return <AuthScreen onAuth={(user) => {
+      storeUser(user);
+      setAuthenticated(true);
+    }} />;
+  }
+
+  return <App onLogout={() => { storeUser(null); setAuthenticated(false); }} />;
 }
 
 function App({ onLogout }) {
   const [page, setPage] = useState('dashboard');
-
-  const [accounts, setAccounts] = useState(() => {
-    try {
-      const saved = localStorage.getItem('tj_accounts');
-      return saved ? JSON.parse(saved) : INITIAL_ACCOUNTS;
-    } catch { return INITIAL_ACCOUNTS; }
-  });
-
-  const [activeAccountId, setActiveAccountId] = useState(() => {
-    return localStorage.getItem('tj_activeAccountId') || 'acc1';
-  });
-
-  const [theme, setTheme] = useState(() => {
-    return localStorage.getItem('tj_theme') || 'light';
-  });
-
-  const [savedStrategies, setSavedStrategies] = useState(() => {
-    try {
-      const saved = localStorage.getItem('tj_strategies');
-      return saved ? JSON.parse(saved) : ['Breakout', 'Scalping', 'Swing', 'ICT', 'Mean Reversion'];
-    } catch { return ['Breakout', 'Scalping', 'Swing', 'ICT', 'Mean Reversion']; }
-  });
-
+  const [accounts, setAccounts] = useState([]);
+  const [activeAccountId, setActiveAccountId] = useState(null);
+  const [savedStrategies, setSavedStrategies] = useState([]);
   const [editTrade, setEditTrade] = useState(null);
+  const [dbLoading, setDbLoading] = useState(true);
+  const [debugStatus, setDebugStatus] = useState('init');
 
-  // Persist accounts whenever they change
-  useEffect(() => {
-    try { localStorage.setItem('tj_accounts', JSON.stringify(accounts)); } catch {}
-  }, [accounts]);
+  const [theme, setTheme] = useState(() => localStorage.getItem('tj_theme') || 'light');
 
-  // Persist active account
-  useEffect(() => {
-    localStorage.setItem('tj_activeAccountId', activeAccountId);
-  }, [activeAccountId]);
-
-  // Persist theme
   useEffect(() => {
     localStorage.setItem('tj_theme', theme);
-  }, [theme]);
-
-  // Persist strategies
-  useEffect(() => {
-    try { localStorage.setItem('tj_strategies', JSON.stringify(savedStrategies)); } catch {}
-  }, [savedStrategies]);
-
-  useEffect(() => {
     document.body.classList.toggle('dark', theme === 'dark');
   }, [theme]);
 
-  const activeAccount = accounts.find(a => a.id === activeAccountId) || accounts[0];
-  const trades = activeAccount.trades;
+  useEffect(() => {
+    // Small delay to ensure storeUser() has been called before this runs
+    const timer = setTimeout(() => {
+      const user = getCurrentUser();
+      if (user) {
+        setDebugStatus('user: ' + user.email);
+        loadAllData(user);
+      } else {
+        setDebugStatus('no user found');
+        setDbLoading(false);
+      }
+    }, 50);
+    return () => clearTimeout(timer);
+  }, []);
 
-  const setTrades = (updater) => {
-    setAccounts(prev => prev.map(a => a.id === activeAccountId ? { ...a, trades: typeof updater === 'function' ? updater(a.trades) : updater } : a));
+  const loadAllData = async (user) => {
+    setDbLoading(true);
+    setDebugStatus('fetching accounts...');
+    try {
+      // Load accounts
+      const { data: accs, error: accsErr } = await supabase
+        .from('accounts')
+        .select('*')
+        .order('created_at', { ascending: true });
+
+      if (accsErr) { setDebugStatus('error: ' + accsErr.message); setDbLoading(false); return; }
+      setDebugStatus('accounts ok, loading trades...');
+
+      // Load trades
+      const { data: trds } = await supabase
+        .from('trades')
+        .select('*')
+        .order('created_at', { ascending: true });
+
+      setDebugStatus('trades ok, loading strategies...');
+
+      // Load strategies
+      const { data: strats } = await supabase
+        .from('strategies')
+        .select('*')
+        .order('created_at', { ascending: true });
+
+      setDebugStatus('all loaded, rendering...');
+
+      if (!accs || accs.length === 0) {
+        // First login — create default account
+        const { data: newAcc, error: newAccErr } = await supabase
+          .from('accounts')
+          .insert({ user_id: user.id, name: 'Compte Principal', initial_capital: 10000, currency: 'EUR' })
+          .select()
+          .single();
+
+        if (newAccErr) { setDebugStatus('error creating account: ' + newAccErr.message); setDbLoading(false); return; }
+
+        const defaultStrats = ['Breakout', 'Scalping', 'Swing', 'ICT', 'Mean Reversion'];
+        await supabase.from('strategies').insert(
+          defaultStrats.map(name => ({ user_id: user.id, name }))
+        );
+
+        setAccounts([{ id: newAcc.id, name: newAcc.name, initialCapital: newAcc.initial_capital, currency: newAcc.currency, trades: [] }]);
+        setActiveAccountId(newAcc.id);
+        setSavedStrategies(defaultStrats);
+      } else {
+        const mappedAccounts = accs.map(acc => ({
+          id: acc.id,
+          name: acc.name,
+          initialCapital: acc.initial_capital,
+          currency: acc.currency,
+          trades: (trds || [])
+            .filter(t => t.account_id === acc.id)
+            .map(t => ({
+              id: t.id,
+              instrument: t.instrument,
+              asset: t.asset,
+              direction: t.direction,
+              qty: t.qty,
+              entry: t.entry,
+              exit: t.exit,
+              entryDate: t.entry_date,
+              exitDate: t.exit_date,
+              pnl: t.pnl,
+              fees: t.fees,
+              strategy: t.strategy,
+              rating: t.rating,
+              notes: t.notes,
+              psychology: t.psychology,
+              manualPnl: t.manual_pnl || '',
+              pipValue: t.pip_value || '10',
+              pointValue: t.point_value || '25',
+              premium: t.premium || '',
+              images: t.images || [],
+            }))
+        }));
+
+        setAccounts(mappedAccounts);
+        setActiveAccountId(accs[0].id);
+        setSavedStrategies((strats || []).map(s => s.name));
+      }
+    } catch (err) {
+      setDebugStatus('catch error: ' + err.message);
+      console.error('Error loading data:', err);
+    }
+    setDbLoading(false);
   };
 
+  // --- ACCOUNT OPERATIONS ---
+  const addAccount = async (name, initialCapital, currency) => {
+    const { data: newAcc } = await supabase
+      .from('accounts')
+      .insert({ user_id: getCurrentUser().id, name, initial_capital: parseFloat(initialCapital) || 0, currency })
+      .select().single();
+    const mapped = { id: newAcc.id, name: newAcc.name, initialCapital: newAcc.initial_capital, currency: newAcc.currency, trades: [] };
+    setAccounts(prev => [...prev, mapped]);
+    return mapped;
+  };
+
+  const updateAccount = async (accId, changes) => {
+    await supabase.from('accounts').update({
+      name: changes.name,
+      initial_capital: parseFloat(changes.initialCapital) || 0,
+      currency: changes.currency,
+    }).eq('id', accId);
+    setAccounts(prev => prev.map(a => a.id === accId ? { ...a, ...changes } : a));
+  };
+
+  const deleteAccount = async (accId) => {
+    await supabase.from('accounts').delete().eq('id', accId);
+    setAccounts(prev => {
+      const remaining = prev.filter(a => a.id !== accId);
+      if (activeAccountId === accId && remaining.length > 0) setActiveAccountId(remaining[0].id);
+      return remaining;
+    });
+  };
+
+  // --- TRADE OPERATIONS ---
+  const setTrades = async (updater) => {
+    const user = getCurrentUser();
+    const currentTrades = accounts.find(a => a.id === activeAccountId)?.trades || [];
+    const newTrades = typeof updater === 'function' ? updater(currentTrades) : updater;
+
+    // Find added, updated, removed trades
+    const currentIds = new Set(currentTrades.map(t => t.id));
+    const newIds = new Set(newTrades.map(t => t.id));
+
+    // Deleted
+    for (const id of currentIds) {
+      if (!newIds.has(id)) {
+        await supabase.from('trades').delete().eq('id', id);
+      }
+    }
+
+    // Added or updated
+    for (const t of newTrades) {
+      const dbRow = {
+        id: typeof t.id === 'number' ? undefined : t.id,
+        account_id: activeAccountId,
+        user_id: user.id,
+        instrument: t.instrument,
+        asset: t.asset,
+        direction: t.direction,
+        qty: t.qty,
+        entry: t.entry,
+        exit: t.exit,
+        entry_date: t.entryDate,
+        exit_date: t.exitDate,
+        pnl: t.pnl,
+        fees: t.fees,
+        strategy: t.strategy,
+        rating: t.rating,
+        notes: t.notes,
+        psychology: t.psychology,
+        manual_pnl: t.manualPnl,
+        pip_value: t.pipValue,
+        point_value: t.pointValue,
+        premium: t.premium,
+        images: t.images || [],
+      };
+
+      if (!currentIds.has(t.id)) {
+        // New trade
+        const { data: inserted } = await supabase.from('trades').insert(dbRow).select().single();
+        if (inserted) {
+          setAccounts(prev => prev.map(a => a.id === activeAccountId
+            ? { ...a, trades: a.trades.map(tr => tr.id === t.id ? { ...t, id: inserted.id } : tr) }
+            : a
+          ));
+          return;
+        }
+      } else {
+        // Updated trade
+        await supabase.from('trades').update(dbRow).eq('id', t.id);
+      }
+    }
+
+    setAccounts(prev => prev.map(a => a.id === activeAccountId ? { ...a, trades: newTrades } : a));
+  };
+
+  // --- STRATEGY OPERATIONS ---
+  const handleSetSavedStrategies = async (updater) => {
+    const user = getCurrentUser();
+    const newStrats = typeof updater === 'function' ? updater(savedStrategies) : updater;
+
+    // Delete all and re-insert (simpler approach)
+    await supabase.from('strategies').delete().eq('user_id', user.id);
+    if (newStrats.length > 0) {
+      await supabase.from('strategies').insert(newStrats.map(name => ({ user_id: user.id, name })));
+    }
+    setSavedStrategies(newStrats);
+  };
+
+  if (dbLoading) {
+    return (
+      <div style={{minHeight:'100vh', background:'var(--bg)', display:'flex', alignItems:'center', justifyContent:'center', flexDirection:'column', gap:16}}>
+        <div style={{width:48, height:48, background:'var(--blue)', borderRadius:14, display:'flex', alignItems:'center', justifyContent:'center'}}>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+          </svg>
+        </div>
+        <div style={{color:'var(--muted)', fontSize:14}}>Chargement de vos données...</div>
+        <div style={{color:'#6B7280', fontSize:11, fontFamily:'monospace', background:'#1A1D27', padding:'6px 12px', borderRadius:8}}>{debugStatus}</div>
+      </div>
+    );
+  }
+
+  const activeAccount = accounts.find(a => a.id === activeAccountId) || accounts[0] || { id: null, name: '', initialCapital: 10000, currency: 'EUR', trades: [] };
+  const trades = activeAccount.trades || [];
   const settings = { accountName: activeAccount.name, initialCapital: activeAccount.initialCapital, currency: activeAccount.currency };
 
   const navItems = [
@@ -2434,9 +2645,9 @@ function App({ onLogout }) {
     <>
       {page === 'dashboard' && <Dashboard trades={trades} settings={settings} setPage={setPage} />}
       {page === 'trades' && <MesTrades trades={trades} setTrades={setTrades} setPage={setPage} setEditTrade={setEditTrade} />}
-      {page === 'nouveau' && <NouveauTrade trades={trades} setTrades={setTrades} setPage={setPage} editTrade={editTrade} savedStrategies={savedStrategies} setSavedStrategies={setSavedStrategies} />}
+      {page === 'nouveau' && <NouveauTrade trades={trades} setTrades={setTrades} setPage={setPage} editTrade={editTrade} savedStrategies={savedStrategies} setSavedStrategies={handleSetSavedStrategies} />}
       {page === 'analyses' && <Analyses trades={trades} theme={theme} />}
-      {page === 'parametres' && <Parametres accounts={accounts} setAccounts={setAccounts} activeAccountId={activeAccountId} setActiveAccountId={setActiveAccountId} theme={theme} setTheme={setTheme} savedStrategies={savedStrategies} setSavedStrategies={setSavedStrategies} onLogout={onLogout} />}
+      {page === 'parametres' && <Parametres accounts={accounts} setAccounts={setAccounts} activeAccountId={activeAccountId} setActiveAccountId={setActiveAccountId} theme={theme} setTheme={setTheme} savedStrategies={savedStrategies} setSavedStrategies={handleSetSavedStrategies} onLogout={onLogout} addAccount={addAccount} updateAccount={updateAccount} deleteAccount={deleteAccount} />}
     </>
   );
 
@@ -2530,9 +2741,7 @@ function App({ onLogout }) {
   );
 }
 
-ReactDOM.createRoot(document.getElementById('root')).render(
-  <AuthGate><App /></AuthGate>
-);
+ReactDOM.createRoot(document.getElementById('root')).render(<AuthGate />);
 </script>
 
 <script>
