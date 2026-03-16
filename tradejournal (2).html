@@ -1,0 +1,2564 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TradeJournal PRO</title>
+
+<!-- PWA -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#2563EB" id="theme-color-meta">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="TradeJournal">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="description" content="Journal de trading professionnel — suivez et analysez vos performances">
+
+<!-- Apple touch icon (inline SVG via data URI) -->
+<link rel="apple-touch-icon" href="icon-192.png">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500;600&family=Lora:wght@500&display=swap" rel="stylesheet">
+<style>
+  /* Override digits globally with Lora via unicode-range font-face */
+  @font-face {
+    font-family: 'DM Sans';
+    src: local('Lora Medium'), url('https://fonts.gstatic.com/s/lora/v35/0QI6MX1D_JOxE7fSWEAmX9YPmw.woff2') format('woff2');
+    font-weight: 300 900;
+    unicode-range: U+0030-0039, U+002B, U+002D, U+002C, U+002E, U+0025; /* 0-9 + - , . % */
+  }
+  @font-face {
+    font-family: 'Syne';
+    src: local('Lora Medium'), url('https://fonts.gstatic.com/s/lora/v35/0QI6MX1D_JOxE7fSWEAmX9YPmw.woff2') format('woff2');
+    font-weight: 300 900;
+    unicode-range: U+0030-0039, U+002B, U+002D, U+002C, U+002E, U+0025;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #F2F4F7;
+    --card: #FFFFFF;
+    --text: #1A1D23;
+    --muted: #7A8299;
+    --border: #E8ECF2;
+    --green: #16A34A;
+    --green-light: #DCFCE7;
+    --green-bg: #F0FDF4;
+    --red: #DC2626;
+    --red-light: #FEE2E2;
+    --blue: #2563EB;
+    --blue-light: #DBEAFE;
+    --orange: #EA580C;
+    --accent: #16A34A;
+    --radius: 16px;
+    --shadow: 0 2px 12px rgba(0,0,0,0.06);
+    --shadow-md: 0 4px 24px rgba(0,0,0,0.10);
+  }
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+    transition: background 0.3s, color 0.3s;
+  }
+  /* ===== DARK THEME ===== */
+  body.dark {
+    --bg: #0F1117;
+    --card: #1A1D27;
+    --text: #F0F2F8;
+    --muted: #8B95A8;
+    --border: #2A2D3A;
+    --green-light: #14532D;
+    --green-bg: #052E16;
+    --red-light: #450A0A;
+    --blue-light: #1E3A5F;
+    --shadow: 0 2px 12px rgba(0,0,0,0.3);
+    --shadow-md: 0 4px 24px rgba(0,0,0,0.5);
+  }
+  /* Dark mode — fix hardcoded whites and colors */
+  body.dark .form-input:focus { background: #1F2230; }
+  body.dark .form-textarea:focus { background: #1F2230; }
+  body.dark .form-input,
+  body.dark .form-textarea,
+  body.dark .form-select { background: #13161F; color: var(--text); }
+  body.dark .filter-select { background: var(--card); color: var(--text); }
+  body.dark .section-title,
+  body.dark .chart-title,
+  body.dark .settings-title,
+  body.dark .page-title,
+  body.dark .trade-name,
+  body.dark .stat-value,
+  body.dark .card-value { color: var(--text); }
+  body.dark .strat-table td { color: var(--text); }
+  body.dark .strat-table td:first-child { color: var(--text); }
+  body.dark .bottom-nav-item .nav-ico { color: var(--muted); filter: none; }
+  body.dark .bottom-nav-item.active .nav-ico { color: var(--blue); }
+  body.dark .bottom-nav-item .nav-label { color: var(--muted); }
+  body.dark .upload-zone { background: #13161F; }
+  body.dark .dir-btn { color: var(--muted); }
+  body.dark .badge.green { color: #4ADE80; }
+  body.dark .trade-pnl.pos { color: #4ADE80; }
+  body.dark .card-value.green { color: #4ADE80; }
+  body.dark .stat-value[style*='green'] { color: #4ADE80 !important; }
+  body.dark input[type="date"]::-webkit-calendar-picker-indicator,
+  body.dark input[type="datetime-local"]::-webkit-calendar-picker-indicator { filter: invert(1); }
+  body.dark select option { background: #1A1D27; color: var(--text); }
+  h1, h2, h3, .brand { font-family: 'Syne', sans-serif; }
+
+  /* Layout */
+  .app { display: flex; flex-direction: column; min-height: 100vh; max-width: 430px; margin: 0 auto; background: var(--bg); position: relative; }
+
+  /* Top bar */
+
+  /* Content */
+  .content { flex: 1; padding: 16px; display: flex; flex-direction: column; gap: 14px; overflow-y: auto; padding-bottom: 80px; }
+
+  /* Menu drawer */
+  .nav-item { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 12px; cursor: pointer; font-size: 15px; font-weight: 500; color: var(--muted); transition: all 0.15s; border: none; background: none; width: 100%; text-align: left; }
+  .nav-item.active { background: var(--blue); color: white; font-weight: 600; }
+  .nav-item:hover:not(.active) { background: var(--bg); color: var(--text); }
+
+  /* Cards */
+  .card { background: var(--card); border-radius: var(--radius); padding: 20px; box-shadow: var(--shadow); border: 1px solid var(--border); }
+  .card-label { font-size: 11px; font-weight: 700; letter-spacing: 1.2px; color: var(--muted); text-transform: uppercase; margin-bottom: 6px; }
+  .card-value { font-family: 'Syne', sans-serif; font-size: 28px; font-weight: 800; color: var(--text); }
+  .card-value.green { color: var(--green); }
+  .card-value.red { color: var(--red); }
+  .badge { display: inline-block; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+  .badge.green { background: var(--green-light); color: var(--green); }
+  .badge.blue { background: var(--blue-light); color: var(--blue); }
+  .card-sub { font-size: 13px; color: var(--muted); margin-top: 4px; }
+  .card-row { display: flex; align-items: flex-start; justify-content: space-between; }
+
+  /* Grid 2 cols */
+
+  /* Chart card */
+  .chart-card { background: var(--card); border-radius: var(--radius); padding: 20px; box-shadow: var(--shadow); border: 1px solid var(--border); }
+  .chart-title { font-family: 'Syne', sans-serif; font-size: 16px; font-weight: 700; }
+  .chart-sub { font-size: 12px; color: var(--muted); }
+  .chart-pct { font-family: 'Syne', sans-serif; font-size: 16px; font-weight: 700; color: var(--green); }
+  .chart-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px; }
+  .chart-wrap { position: relative; height: 160px; }
+
+  /* Trade list */
+  .section-title { font-family: 'Syne', sans-serif; font-size: 18px; font-weight: 700; }
+  .trade-item { background: var(--card); border-radius: 14px; padding: 14px 16px; box-shadow: var(--shadow); border: 1px solid var(--border); display: flex; align-items: center; gap: 12px; cursor: pointer; transition: transform 0.15s; }
+  .trade-item:active { transform: scale(0.98); }
+  .trade-dir { width: 40px; height: 40px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
+  .trade-dir.long { background: var(--green-light); }
+  .trade-dir.short { background: var(--red-light); }
+  .trade-info { flex: 1; min-width: 0; }
+  .trade-name { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 15px; }
+  .trade-meta { display: flex; align-items: center; gap: 6px; margin-top: 2px; }
+  .dir-badge { padding: 2px 8px; border-radius: 6px; font-size: 10px; font-weight: 700; letter-spacing: 0.5px; }
+  .dir-badge.long { background: var(--green-light); color: var(--green); }
+  .dir-badge.short { background: var(--red-light); color: var(--red); }
+  .trade-date { font-size: 12px; color: var(--muted); }
+  .trade-stars { font-size: 12px; color: #F59E0B; letter-spacing: -1px; }
+  .trade-pnl { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 15px; white-space: nowrap; }
+  .trade-pnl.pos { color: var(--green); }
+  .trade-pnl.neg { color: var(--red); }
+  .trade-del { background: none; border: none; color: var(--muted); font-size: 16px; cursor: pointer; padding: 4px; opacity: 0.5; transition: opacity 0.15s; }
+  .trade-del:hover { opacity: 1; color: var(--red); }
+
+  /* Search & filters */
+  .search-bar { background: var(--card); border-radius: 12px; padding: 10px 14px; display: flex; align-items: center; gap: 8px; border: 1px solid var(--border); box-shadow: var(--shadow); }
+  .search-bar input { border: none; outline: none; background: none; font-family: 'DM Sans', sans-serif; font-size: 14px; color: var(--text); flex: 1; }
+  .search-bar input::placeholder { color: var(--muted); }
+  .filter-row { display: flex; gap: 10px; }
+  .filter-select { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 8px 12px; font-family: 'DM Sans', sans-serif; font-size: 14px; color: var(--text); cursor: pointer; box-shadow: var(--shadow); outline: none; appearance: none; padding-right: 28px; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%237A8299' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 10px center; }
+
+  /* Page header */
+  .page-sub { font-size: 14px; color: var(--muted); margin-top: 2px; }
+
+  /* New trade button */
+  .btn-primary { display: flex; align-items: center; justify-content: center; gap: 8px; background: var(--blue); color: white; border: none; border-radius: 12px; padding: 13px 20px; font-family: 'DM Sans', sans-serif; font-size: 15px; font-weight: 600; cursor: pointer; box-shadow: 0 4px 14px rgba(37,99,235,0.3); transition: all 0.2s; width: 100%; }
+  .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(37,99,235,0.35); }
+  .btn-primary:active { transform: translateY(0); }
+  .btn-save { display: flex; align-items: center; justify-content: center; gap: 8px; background: var(--blue); color: white; border: none; border-radius: 12px; padding: 13px 20px; font-family: 'DM Sans', sans-serif; font-size: 15px; font-weight: 600; cursor: pointer; width: 100%; box-shadow: 0 4px 14px rgba(37,99,235,0.3); }
+  .btn-cancel { display: flex; align-items: center; justify-content: center; background: var(--bg); color: var(--muted); border: 1px solid var(--border); border-radius: 12px; padding: 13px 20px; font-family: 'DM Sans', sans-serif; font-size: 15px; font-weight: 600; cursor: pointer; width: 100%; }
+
+  /* Form */
+  .form-section { background: var(--card); border-radius: var(--radius); padding: 20px; box-shadow: var(--shadow); border: 1px solid var(--border); display: flex; flex-direction: column; gap: 16px; }
+  .form-group { display: flex; flex-direction: column; gap: 6px; }
+  .form-label { font-size: 13px; font-weight: 600; color: var(--text); }
+  .form-label .req { color: var(--red); }
+  .form-input { border: 1.5px solid var(--border); border-radius: 10px; padding: 11px 14px; font-family: 'DM Sans', sans-serif; font-size: 14px; color: var(--text); outline: none; transition: border-color 0.15s; background: var(--bg); }
+  .form-input:focus { border-color: var(--blue); background: var(--card); }
+  .form-input::placeholder { color: var(--muted); }
+  .form-select { border: 1.5px solid var(--border); border-radius: 10px; padding: 11px 14px; font-family: 'DM Sans', sans-serif; font-size: 14px; color: var(--text); outline: none; background: var(--bg); appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%237A8299' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 14px center; cursor: pointer; }
+  .direction-toggle { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .dir-btn { padding: 12px; border-radius: 10px; border: 2px solid var(--border); background: none; font-family: 'Syne', sans-serif; font-weight: 700; font-size: 14px; cursor: pointer; transition: all 0.15s; color: var(--muted); }
+  .dir-btn.long.active { background: var(--green); border-color: var(--green); color: white; }
+  .dir-btn.short.active { background: var(--red); border-color: var(--red); color: white; }
+  .stars-input { display: flex; gap: 6px; }
+  .star-btn { font-size: 22px; background: none; border: none; cursor: pointer; transition: transform 0.1s; line-height: 1; }
+  .star-btn:hover { transform: scale(1.2); }
+  .form-textarea { border: 1.5px solid var(--border); border-radius: 10px; padding: 11px 14px; font-family: 'DM Sans', sans-serif; font-size: 14px; color: var(--text); outline: none; background: var(--bg); resize: vertical; min-height: 80px; transition: border-color 0.15s; }
+  .form-textarea:focus { border-color: var(--blue); background: var(--card); }
+  .form-textarea::placeholder { color: var(--muted); }
+  .section-label { display: flex; align-items: center; gap: 8px; font-family: 'Syne', sans-serif; font-weight: 700; font-size: 14px; }
+  .section-label.purple { color: #7C3AED; }
+  .section-label.blue { color: var(--blue); }
+  .upload-zone { border: 2px dashed var(--border); border-radius: 12px; padding: 20px; display: flex; flex-direction: column; align-items: center; gap: 8px; cursor: pointer; transition: border-color 0.15s; background: var(--bg); }
+  .upload-zone:hover { border-color: var(--blue); }
+  .upload-icon { font-size: 28px; }
+  .upload-label { font-size: 13px; color: var(--muted); }
+  .btn-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+  /* Analytics */
+  .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .stat-card { background: var(--card); border-radius: 14px; padding: 16px; box-shadow: var(--shadow); border: 1px solid var(--border); }
+  .stat-label { font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
+  .stat-value { font-family: 'Syne', sans-serif; font-size: 20px; font-weight: 800; }
+  .stat-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+  /* Strategy table */
+  .strat-table { width: 100%; border-collapse: collapse; }
+  .strat-table th { font-size: 11px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; color: var(--muted); text-align: left; padding: 8px 0; border-bottom: 1px solid var(--border); }
+  .strat-table td { padding: 12px 0; border-bottom: 1px solid var(--border); font-size: 14px; color: var(--text); }
+  .strat-table td:last-child { text-align: right; font-family: 'Syne', sans-serif; font-weight: 700; }
+  .strat-table tr:last-child td { border-bottom: none; }
+
+  /* Settings */
+  .settings-card { background: var(--card); border-radius: var(--radius); padding: 20px; box-shadow: var(--shadow); border: 1px solid var(--border); display: flex; flex-direction: column; gap: 16px; }
+  .settings-title { font-family: 'Syne', sans-serif; font-size: 16px; font-weight: 700; margin-bottom: 4px; }
+  .btn-logout { display: flex; align-items: center; justify-content: center; gap: 8px; background: none; color: var(--red); border: 1px solid var(--red-light); border-radius: 12px; padding: 13px 20px; font-family: 'DM Sans', sans-serif; font-size: 15px; font-weight: 600; cursor: pointer; width: 100%; transition: background 0.15s; }
+  .btn-logout:hover { background: var(--red-light); }
+
+  /* Toast */
+  .toast { position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%); background: var(--text); color: white; padding: 10px 20px; border-radius: 20px; font-size: 14px; font-weight: 500; z-index: 999; box-shadow: var(--shadow-md); animation: fadeInUp 0.3s ease; white-space: nowrap; }
+  @keyframes fadeInUp { from { opacity: 0; transform: translateX(-50%) translateY(10px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
+
+  /* Quote */
+  .quote-card { background: linear-gradient(135deg, #1E3A5F, #2563EB); border-radius: var(--radius); padding: 20px; color: white; }
+  .quote-icon { font-size: 24px; opacity: 0.6; margin-bottom: 8px; }
+  .quote-text { font-style: italic; font-size: 14px; line-height: 1.6; opacity: 0.9; }
+  .quote-author { margin-top: 10px; font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 700; color: #93C5FD; }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+  /* Nav bottom — mobile only */
+  .bottom-nav { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 430px; background: var(--card); border-top: 1px solid var(--border); display: flex; justify-content: space-around; padding: 8px 0 12px; z-index: 100; transition: background 0.3s, border-color 0.3s; }
+  .bottom-nav-item { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; cursor: pointer; padding: 4px 12px; border-radius: 10px; background: none; border: none; min-width: 56px; }
+  .bottom-nav-item .nav-label { font-size: 10px; font-weight: 600; color: var(--muted); line-height: 1; white-space: nowrap; }
+  .bottom-nav-item.active .nav-label { color: var(--blue); }
+  .bottom-nav-item .nav-ico { font-size: 20px; color: var(--muted); }
+  .bottom-nav-item.active .nav-ico { color: var(--blue); }
+
+  /* ===== RESPONSIVE DESKTOP ===== */
+  @media (min-width: 768px) {
+    body { overflow: hidden; }
+
+    /* Full-width app on desktop */
+    .app {
+      max-width: 100%;
+      flex-direction: row;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* Sidebar */
+    .desktop-sidebar {
+      width: 220px;
+      flex-shrink: 0;
+      background: var(--card);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      padding: 24px 16px 20px;
+      height: 100vh;
+      position: sticky;
+      top: 0;
+      overflow-y: auto;
+      transition: background 0.3s, border-color 0.3s;
+    }
+    .sidebar-brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 28px;
+      padding: 0 4px;
+    }
+    .sidebar-brand-icon {
+      width: 34px;
+      height: 34px;
+      background: var(--blue);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 16px;
+      flex-shrink: 0;
+    }
+    .sidebar-brand-text {
+      font-family: 'Syne', sans-serif;
+      font-weight: 800;
+      font-size: 15px;
+      color: var(--text);
+      line-height: 1.1;
+    }
+    .sidebar-brand-sub {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      color: var(--blue);
+      text-transform: uppercase;
+    }
+    .sidebar-nav-item {
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      cursor: pointer;
+      border: none;
+      background: none;
+      width: 100%;
+      text-align: left;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--muted);
+      transition: all 0.15s;
+      margin-bottom: 2px;
+    }
+    .sidebar-nav-item:hover { background: var(--bg); color: var(--text); }
+    .sidebar-nav-item.active { background: var(--blue); color: white; font-weight: 600; }
+    .sidebar-nav-item.active svg { stroke: white; }
+    .sidebar-nav-icon { display: flex; align-items: center; width: 20px; flex-shrink: 0; }
+    .sidebar-account-pill {
+      margin-top: auto;
+      padding: 12px;
+      background: var(--bg);
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      cursor: pointer;
+    }
+    .sidebar-account-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); flex-shrink: 0; }
+
+    /* Main content area */
+    .desktop-main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* Top bar on desktop */
+    .desktop-topbar {
+      padding: 16px 28px 12px;
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+      transition: background 0.3s;
+    }
+
+    /* Scrollable content */
+    .desktop-scroll {
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px 28px;
+      padding-bottom: 32px;
+    }
+
+    /* Hide bottom nav on desktop */
+    .bottom-nav { display: none; }
+
+    /* Content layout on desktop */
+    .content {
+      padding: 0;
+      padding-bottom: 0;
+      max-width: 900px;
+      width: 100%;
+      margin: 0 auto;
+    }
+
+    /* Dashboard stat cards — 4 in a row on desktop */
+    .desktop-stat-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+    }
+
+    /* Analyses stat grid — larger */
+    .stat-grid { grid-template-columns: repeat(4, 1fr); }
+
+    /* Charts side by side on desktop */
+    .desktop-chart-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+
+    /* Form max width on desktop */
+    .form-section { max-width: 680px; margin: 0 auto; }
+
+    /* Card value larger on desktop */
+    .card-value { font-size: 32px; }
+  }
+
+  @media (min-width: 1200px) {
+    .desktop-sidebar { width: 240px; }
+    .content { max-width: 1100px; }
+  }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useRef, useCallback } = React;
+
+const INITIAL_ACCOUNTS = [
+  {
+    id: 'acc1',
+    name: 'Compte Principal',
+    initialCapital: 10000,
+    currency: 'EUR',
+    trades: [
+      { id: 1, instrument: 'GBP/USD', direction: 'SHORT', asset: 'Forex', qty: 1, entry: 1.2650, exit: 1.2443, entryDate: '2026-05-14', exitDate: '2026-05-14', pnl: 207.80, fees: 0, strategy: 'ICT', rating: 5, notes: '', psychology: '', images: [] },
+      { id: 2, instrument: 'EUR/USD', direction: 'LONG', asset: 'Forex', qty: 1, entry: 1.0800, exit: 1.0868, entryDate: '2025-01-15', exitDate: '2025-01-15', pnl: 68.00, fees: 0, strategy: 'Breakout', rating: 4, notes: '', psychology: '', images: [] },
+      { id: 3, instrument: 'AAPL', direction: 'LONG', asset: 'Actions', qty: 2, entry: 185, exit: 275, entryDate: '2025-01-20', exitDate: '2025-01-20', pnl: 180.00, fees: 0, strategy: 'Swing', rating: 5, notes: '', psychology: '', images: [] },
+      { id: 4, instrument: 'BTC/USD', direction: 'SHORT', asset: 'Crypto', qty: 0.1, entry: 95000, exit: 92000, entryDate: '2025-01-25', exitDate: '2025-01-25', pnl: -90.00, fees: 0, strategy: 'Mean Reversion', rating: 2, notes: '', psychology: '', images: [] },
+      { id: 5, instrument: 'ETH/USD', direction: 'LONG', asset: 'Crypto', qty: 0.5, entry: 3200, exit: 3452, entryDate: '2025-02-18', exitDate: '2025-02-18', pnl: 126.00, fees: 0, strategy: 'Breakout', rating: 4, notes: '', psychology: '', images: [] },
+      { id: 6, instrument: 'DAX', direction: 'LONG', asset: 'Indices', qty: 1, entry: 21800, exit: 22092, entryDate: '2025-02-20', exitDate: '2025-02-20', pnl: 292.00, fees: 0, strategy: 'Scalping', rating: 5, notes: '', psychology: '', images: [] },
+      { id: 7, instrument: 'GOLD', direction: 'LONG', asset: 'Matières Premières', qty: 0.5, entry: 2850, exit: 2890, entryDate: '2025-02-27', exitDate: '2025-02-27', pnl: 20.00, fees: 0, strategy: 'Swing', rating: 3, notes: '', psychology: '', images: [] },
+      { id: 8, instrument: 'USD/JPY', direction: 'SHORT', asset: 'Forex', qty: 1, entry: 154.50, exit: 154.05, entryDate: '2025-03-01', exitDate: '2025-03-01', pnl: 45.00, fees: 0, strategy: 'Swing', rating: 4, notes: '', psychology: '', images: [] },
+      { id: 9, instrument: 'MSFT', direction: 'LONG', asset: 'Actions', qty: 2, entry: 420, exit: 368, entryDate: '2025-03-06', exitDate: '2025-03-06', pnl: -104.00, fees: 0, strategy: 'Breakout', rating: 2, notes: '', psychology: '', images: [] },
+      { id: 10, instrument: 'NAS100', direction: 'LONG', asset: 'Indices', qty: 1, entry: 21500, exit: 21744, entryDate: '2025-03-12', exitDate: '2025-03-12', pnl: 244.00, fees: 0, strategy: 'Swing', rating: 5, notes: '', psychology: '', images: [] },
+      { id: 11, instrument: 'EUR/GBP', direction: 'SHORT', asset: 'Forex', qty: 1, entry: 0.8320, exit: 0.8290, entryDate: '2025-04-02', exitDate: '2025-04-02', pnl: 38.00, fees: 0, strategy: 'Mean Reversion', rating: 3, notes: '', psychology: '', images: [] },
+      { id: 12, instrument: 'NVDA', direction: 'LONG', asset: 'Actions', qty: 1, entry: 880, exit: 920, entryDate: '2025-04-18', exitDate: '2025-04-18', pnl: 40.00, fees: 0, strategy: 'Swing', rating: 4, notes: '', psychology: '', images: [] },
+      { id: 13, instrument: 'USD/CAD', direction: 'SHORT', asset: 'Forex', qty: 1, entry: 1.4450, exit: 1.4390, entryDate: '2025-05-10', exitDate: '2025-05-10', pnl: 31.00, fees: 0, strategy: 'Breakout', rating: 3, notes: '', psychology: '', images: [] },
+    ]
+  }
+];
+
+const QUOTES = [
+  { text: "La patience est la vertu première du trading, et la plus précieuse.", author: "Jesse Livermore" },
+  { text: "Le marché peut rester irrationnel plus longtemps que vous ne pouvez rester solvable.", author: "John Maynard Keynes" },
+  { text: "Coupez vos pertes rapidement et laissez courir vos profits.", author: "Paul Tudor Jones" },
+  { text: "Le risque vient de ne pas savoir ce que vous faites.", author: "Warren Buffett" },
+  { text: "Ne tradez pas avec de l'argent que vous ne pouvez pas vous permettre de perdre.", author: "Ed Seykota" },
+  { text: "La discipline est la clé. Sans elle, peu importe votre stratégie.", author: "Mark Douglas" },
+  { text: "Les marchés sont constamment dans un état d'incertitude. Le profit vient de ceux qui savent ignorer les peurs et agir sur les probabilités.", author: "George Soros" },
+  { text: "Votre objectif n'est pas d'avoir raison, mais de gagner de l'argent.", author: "Larry Hite" },
+  { text: "La pire erreur d'un trader est de penser que sa dernière transaction est représentative de ce qu'il est.", author: "Bruce Kovner" },
+  { text: "Le succès en trading vient de la gestion du risque, pas de la prédiction du marché.", author: "Jack Schwager" },
+  { text: "Préparez-vous mentalement à des pertes. Elles font partie du jeu.", author: "Peter Lynch" },
+  { text: "Un trade réussi n'est pas forcément un bon trade. Un mauvais résultat ne signifie pas une mauvaise décision.", author: "Mark Douglas" },
+  { text: "Les amateurs se concentrent sur les profits. Les pros se concentrent sur la protection du capital.", author: "Alexander Elder" },
+  { text: "Il faut perdre de l'argent pour apprendre à en gagner.", author: "Jesse Livermore" },
+  { text: "Je n'ai jamais gagné d'argent en pariant contre la tendance.", author: "Martin Zweig" },
+  { text: "Le trading est simple, mais pas facile.", author: "Ed Seykota" },
+  { text: "Acceptez chaque trade comme incertain. Le marché récompense l'humilité.", author: "Mark Douglas" },
+  { text: "Votre cerveau est votre meilleur outil — et votre pire ennemi en trading.", author: "Brett Steenbarger" },
+  { text: "La cohérence naît d'un état d'esprit discipliné, pas d'une stratégie parfaite.", author: "Mark Douglas" },
+  { text: "Le marché est le seul endroit où vous pouvez faire faillite en ayant raison.", author: "Nassim Taleb" },
+];
+
+function Stars({ value }) {
+  return <span>{[1,2,3,4,5].map(i => <span key={i}>{i <= value ? '★' : '☆'}</span>)}</span>;
+}
+
+function formatPnl(v) {
+  const sign = v >= 0 ? '+' : '';
+  return `${sign}${v.toFixed(2).replace('.',',')} €`;
+}
+
+function formatDate(d) {
+  if (!d) return '';
+  // Support both "YYYY-MM-DD" and "YYYY-MM-DDTHH:mm"
+  const hasTime = d.includes('T') && d.length > 10;
+  const datePart = d.split('T')[0];
+  const [y, m, day] = datePart.split('-');
+  const months = ['janv.','févr.','mars','avr.','mai','juin','juil.','août','sept.','oct.','nov.','déc.'];
+  const dateStr = `${parseInt(day)} ${months[parseInt(m)-1]} ${y}`;
+  if (hasTime) {
+    const timePart = d.split('T')[1].slice(0, 5);
+    return `${dateStr} ${timePart}`;
+  }
+  return dateStr;
+}
+
+const SESSIONS = [
+  {
+    city: 'Londres', tz: 'Europe/London', flag: '🇬🇧',
+    open: 8, close: 17,
+    color: '#2563EB', colorLight: '#DBEAFE',
+  },
+  {
+    city: 'New York', tz: 'America/New_York', flag: '🇺🇸',
+    open: 13, close: 22,
+    color: '#16A34A', colorLight: '#DCFCE7',
+  },
+  {
+    city: 'Tokyo', tz: 'Asia/Tokyo', flag: '🇯🇵',
+    open: 0, close: 9,
+    color: '#EA580C', colorLight: '#FEF3C7',
+  },
+];
+
+function AnalogClock({ hours, minutes, seconds, color, isOpen }) {
+  const size = 64;
+  const cx = size / 2;
+  const cy = size / 2;
+  const r = size / 2 - 3;
+
+  const toRad = (deg) => (deg - 90) * Math.PI / 180;
+
+  const secAngle = seconds * 6;
+  const minAngle = minutes * 6 + seconds * 0.1;
+  const hrAngle  = (hours % 12) * 30 + minutes * 0.5;
+
+  const hand = (angle, length, width, col) => {
+    const rad = toRad(angle);
+    return <line x1={cx} y1={cy} x2={cx + length * Math.cos(rad)} y2={cy + length * Math.sin(rad)} stroke={col} strokeWidth={width} strokeLinecap="round" />;
+  };
+
+  // Hour markers
+  const markers = Array.from({length: 12}, (_, i) => {
+    const a = toRad(i * 30);
+    const inner = i % 3 === 0 ? r - 8 : r - 5;
+    return <line key={i} x1={cx + inner * Math.cos(a)} y1={cy + inner * Math.sin(a)} x2={cx + r * Math.cos(a)} y2={cy + r * Math.sin(a)} stroke={isOpen ? color : '#CBD5E1'} strokeWidth={i % 3 === 0 ? 2 : 1} />;
+  });
+
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+      {/* Face */}
+      <circle cx={cx} cy={cy} r={r} fill="white" stroke={isOpen ? color : '#E2E8F0'} strokeWidth={2} />
+      {/* Glow ring if open */}
+      {isOpen && <circle cx={cx} cy={cy} r={r} fill="none" stroke={color} strokeWidth={3} opacity={0.15} />}
+      {markers}
+      {/* Hands */}
+      {hand(hrAngle, r * 0.5, 2.5, isOpen ? '#1A1D23' : '#94A3B8')}
+      {hand(minAngle, r * 0.7, 2, isOpen ? '#1A1D23' : '#94A3B8')}
+      {hand(secAngle, r * 0.85, 1, isOpen ? color : '#CBD5E1')}
+      {/* Center dot */}
+      <circle cx={cx} cy={cy} r={3} fill={isOpen ? color : '#94A3B8'} />
+    </svg>
+  );
+}
+
+function TradingClocks() {
+  const [now, setNow] = useState(new Date());
+
+  useEffect(() => {
+    const t = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(t);
+  }, []);
+
+  const getSessionTime = (tz) => {
+    const str = now.toLocaleTimeString('fr-FR', { timeZone: tz, hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+    const [h, m, s] = str.split(':').map(Number);
+    return { h, m, s };
+  };
+
+  const isSessionOpen = (tz, open, close) => {
+    const utcHour = now.getUTCHours();
+    const utcMin  = now.getUTCMinutes();
+    const utcDec  = utcHour + utcMin / 60;
+    if (open < close) return utcDec >= open && utcDec < close;
+    return utcDec >= open || utcDec < close; // overnight (Tokyo)
+  };
+
+  return (
+    <div style={{display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:10}}>
+      {SESSIONS.map(s => {
+        const { h, m, sec: secVal } = (() => { const t = getSessionTime(s.tz); return {h:t.h, m:t.m, sec:t.s}; })();
+        const open = isSessionOpen(s.tz, s.open, s.close);
+        const timeStr = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+        return (
+          <div key={s.city} style={{display:'flex',flexDirection:'column',alignItems:'center',gap:6}}>
+            <div style={{position:'relative'}}>
+              <AnalogClock hours={h} minutes={m} seconds={getSessionTime(s.tz).s} color={s.color} isOpen={open} />
+              {open && (
+                <div style={{position:'absolute',top:-3,right:-3,width:10,height:10,borderRadius:'50%',background:s.color,border:'2px solid white',boxShadow:`0 0 6px ${s.color}`}} />
+              )}
+            </div>
+            <div style={{textAlign:'center'}}>
+              <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:11,color:'var(--text)'}}>{s.flag} {s.city}</div>
+              <div style={{fontFamily:"'DM Sans',sans-serif",fontWeight:700,fontSize:13,color: open ? s.color : 'var(--muted)',letterSpacing:'0.5px'}}>{timeStr}</div>
+              <div style={{fontSize:9,fontWeight:700,letterSpacing:'0.8px',textTransform:'uppercase',color: open ? s.color : 'var(--muted)',marginTop:1,background: open ? s.colorLight : 'var(--bg)',borderRadius:20,padding:'1px 7px',display:'inline-block'}}>
+                {open ? '● Ouverte' : '○ Fermée'}
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function Dashboard({ trades, settings, setPage }) {
+  const totalPnl = trades.reduce((s, t) => s + t.pnl, 0);
+  const capital = settings.initialCapital + totalPnl;
+  const pct = ((totalPnl / settings.initialCapital) * 100).toFixed(2);
+  const wins = trades.filter(t => t.pnl > 0).length;
+  const losses = trades.filter(t => t.pnl < 0).length;
+  const winRate = trades.length ? ((wins / trades.length) * 100).toFixed(1) : 0;
+  const avgPnl = trades.length ? (totalPnl / trades.length) : 0;
+  const recent = [...trades].sort((a,b) => b.entryDate.localeCompare(a.entryDate)).slice(0,8);
+  const [quoteIdx, setQuoteIdx] = useState(0);
+  const [quoteFade, setQuoteFade] = useState(true);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setQuoteFade(false);
+      setTimeout(() => {
+        setQuoteIdx(i => (i + 1) % QUOTES.length);
+        setQuoteFade(true);
+      }, 400);
+    }, 10000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const quote = QUOTES[quoteIdx];
+
+  const equityRef = useRef(null);
+  const barRef = useRef(null);
+  const drawdownRef = useRef(null);
+  const equityChart = useRef(null);
+  const barChart = useRef(null);
+  const drawdownChart = useRef(null);
+
+  useEffect(() => {
+    if (!equityRef.current) return;
+    if (equityChart.current) equityChart.current.destroy();
+    const sorted = [...trades].sort((a,b) => a.entryDate.localeCompare(b.entryDate));
+    let cap = settings.initialCapital;
+    const labels = ['Départ'];
+    const data = [cap];
+    sorted.forEach(t => { cap += t.pnl; labels.push(formatDate(t.entryDate)); data.push(parseFloat(cap.toFixed(2))); });
+    equityChart.current = new Chart(equityRef.current, {
+      type: 'line',
+      data: { labels, datasets: [{ data, borderColor: '#16A34A', backgroundColor: 'rgba(22,163,74,0.08)', fill: true, tension: 0.4, pointRadius: 0 }] },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { ticks: { font: { size: 10, family: 'DM Sans' }, color: '#7A8299', maxTicksLimit: 5 }, grid: { display: false } }, y: { ticks: { font: { size: 10, family: 'DM Sans' }, color: '#7A8299', callback: v => v >= 1000 ? (v/1000).toFixed(1)+'k' : v }, grid: { color: 'rgba(0,0,0,0.05)' } } } }
+    });
+    return () => { if (equityChart.current) equityChart.current.destroy(); };
+  }, [trades, settings]);
+
+  useEffect(() => {
+    if (!drawdownRef.current) return;
+    if (drawdownChart.current) drawdownChart.current.destroy();
+    const sorted = [...trades].sort((a,b) => a.entryDate.localeCompare(b.entryDate));
+    let cap = settings.initialCapital;
+    let peak = cap;
+    const labels = ['Départ'];
+    const ddData = [0];
+    sorted.forEach(t => {
+      cap = parseFloat((cap + t.pnl).toFixed(2));
+      if (cap > peak) peak = cap;
+      const dd = peak > 0 ? parseFloat((((cap - peak) / peak) * 100).toFixed(2)) : 0;
+      labels.push(formatDate(t.entryDate));
+      ddData.push(dd);
+    });
+    drawdownChart.current = new Chart(drawdownRef.current, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [{
+          data: ddData,
+          borderColor: '#DC2626',
+          backgroundColor: 'rgba(220,38,38,0.10)',
+          fill: true,
+          tension: 0.4,
+          pointRadius: 0,
+          borderWidth: 1.5,
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: ctx => `  Drawdown : ${ctx.raw.toFixed(2)}%`
+            }
+          }
+        },
+        scales: {
+          x: { ticks: { font: { size: 10, family: 'DM Sans' }, color: '#7A8299', maxTicksLimit: 5 }, grid: { display: false } },
+          y: {
+            max: 0,
+            ticks: { font: { size: 10, family: 'DM Sans' }, color: '#7A8299', callback: v => v + '%' },
+            grid: { color: 'rgba(0,0,0,0.05)' }
+          }
+        }
+      }
+    });
+    return () => { if (drawdownChart.current) drawdownChart.current.destroy(); };
+  }, [trades, settings]);
+
+  const [barPeriod, setBarPeriod] = useState('total');
+
+  const getBarData = () => {
+    const now = new Date();
+    const sorted = [...trades].sort((a,b) => a.entryDate.localeCompare(b.entryDate));
+
+    // Filter by period
+    const filtered = sorted.filter(t => {
+      const d = new Date(t.entryDate.split('T')[0]);
+      if (barPeriod === 'day') {
+        return d.toDateString() === now.toDateString();
+      } else if (barPeriod === 'week') {
+        const weekAgo = new Date(now); weekAgo.setDate(now.getDate() - 7);
+        return d >= weekAgo;
+      } else if (barPeriod === 'month') {
+        return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+      } else if (barPeriod === 'year') {
+        return d.getFullYear() === now.getFullYear();
+      }
+      return true; // total
+    });
+
+    // Group by instrument
+    const grouped = {};
+    filtered.forEach(t => {
+      if (!grouped[t.instrument]) grouped[t.instrument] = 0;
+      grouped[t.instrument] = parseFloat((grouped[t.instrument] + t.pnl).toFixed(2));
+    });
+
+    const labels = Object.keys(grouped);
+    const data = Object.values(grouped);
+    return { labels, data };
+  };
+
+  useEffect(() => {
+    if (!barRef.current) return;
+    if (barChart.current) barChart.current.destroy();
+    const { labels, data } = getBarData();
+    if (labels.length === 0) {
+      barChart.current = null;
+      return;
+    }
+    barChart.current = new Chart(barRef.current, {
+      type: 'bar',
+      data: { labels, datasets: [{ data, backgroundColor: data.map(v => v >= 0 ? '#16A34A' : '#DC2626'), borderRadius: 5 }] },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => `  ${ctx.raw >= 0 ? '+' : ''}${ctx.raw.toFixed(2)} €` } } },
+        scales: {
+          x: { ticks: { font: { size: 10, family: 'DM Sans' }, color: '#7A8299' }, grid: { display: false } },
+          y: { ticks: { font: { size: 10, family: 'DM Sans' }, color: '#7A8299', callback: v => v + ' €' }, grid: { color: 'rgba(0,0,0,0.05)' } }
+        }
+      }
+    });
+    return () => { if (barChart.current) barChart.current.destroy(); };
+  }, [trades, barPeriod]);
+
+  return (
+    <div className="content">
+      <div className="chart-card" style={{padding:'16px 20px'}}>
+        <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:15,marginBottom:14}}>Sessions de Trading</div>
+        <TradingClocks />
+      </div>
+      <div className="card">
+        <div className="card-row"><div><div className="card-label">Capital Actuel</div><div className="card-value">{capital.toFixed(2).replace('.',',')} €</div><span className="badge green">+{pct}%</span></div></div>
+      </div>
+      <div className="card">
+        <div className="card-row"><div><div className="card-label">P&L Total</div><div className={`card-value ${totalPnl >= 0 ? 'green' : 'red'}`}>{formatPnl(totalPnl)}</div><span className="badge green">+{trades.length} trades</span></div></div>
+      </div>
+      <div className="card">
+        <div className="card-row"><div><div className="card-label">Win Rate</div><div className="card-value">{winRate}%</div><div className="card-sub">{wins}W / {losses}L</div></div></div>
+      </div>
+      <div className="card">
+        <div className="card-row"><div><div className="card-label">P&L Moyen</div><div className={`card-value ${avgPnl >= 0 ? 'green' : 'red'}`}>{formatPnl(avgPnl)}</div><span className="badge green">+par trade</span></div></div>
+      </div>
+      <div className="chart-card">
+        <div className="chart-header"><div><div className="chart-title">Courbe d'Equity</div><div className="chart-sub">Évolution du capital</div></div><div className="chart-pct">{pct}%</div></div>
+        <div className="chart-wrap"><canvas ref={equityRef}></canvas></div>
+      </div>
+      <div className="chart-card">
+        {(() => {
+          const sorted = [...trades].sort((a,b) => a.entryDate.localeCompare(b.entryDate));
+          let cap = settings.initialCapital, peak = cap;
+          let maxDd = 0;
+          sorted.forEach(t => {
+            cap = parseFloat((cap + t.pnl).toFixed(2));
+            if (cap > peak) peak = cap;
+            const dd = peak > 0 ? (cap - peak) / peak * 100 : 0;
+            if (dd < maxDd) maxDd = dd;
+          });
+          return (
+            <div className="chart-header">
+              <div><div className="chart-title">Courbe de Drawdown</div><div className="chart-sub">Recul depuis le pic</div></div>
+              <div style={{fontFamily:"'Syne',sans-serif", fontWeight:800, fontSize:14, color:'var(--red)'}}>{maxDd.toFixed(2)}%</div>
+            </div>
+          );
+        })()}
+        <div className="chart-wrap"><canvas ref={drawdownRef}></canvas></div>
+      </div>
+      <div className="chart-card">
+        <div className="chart-header" style={{marginBottom:10}}>
+          <div><div className="chart-title">P&L par Instrument</div></div>
+          {(() => { const {data} = getBarData(); const total = data.reduce((s,v)=>s+v,0); return <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:14,color:total>=0?'var(--green)':'var(--red)'}}>{total>=0?'+':''}{total.toFixed(2)} €</div>; })()}
+        </div>
+        {/* Period tabs */}
+        <div style={{display:'flex',gap:4,marginBottom:14,background:'var(--bg)',borderRadius:10,padding:4}}>
+          {[['day','Jour'],['week','Sem.'],['month','Mois'],['year','Année'],['total','Total']].map(([k,l]) => (
+            <button key={k} onClick={() => setBarPeriod(k)} style={{flex:1,padding:'6px 2px',borderRadius:7,border:'none',background: barPeriod===k ? 'var(--card)' : 'transparent',color: barPeriod===k ? 'var(--text)' : 'var(--muted)',fontFamily:"'DM Sans',sans-serif",fontWeight: barPeriod===k ? 700 : 500,fontSize:11,cursor:'pointer',boxShadow: barPeriod===k ? 'var(--shadow)' : 'none',transition:'all 0.15s'}}>
+              {l}
+            </button>
+          ))}
+        </div>
+        {getBarData().labels.length === 0 ? (
+          <div style={{height:160,display:'flex',alignItems:'center',justifyContent:'center',color:'var(--muted)',fontSize:13}}>
+            Aucun trade sur cette période
+          </div>
+        ) : (
+          <div className="chart-wrap"><canvas ref={barRef}></canvas></div>
+        )}
+      </div>
+      <div>
+        <div className="section-title" style={{marginBottom:12}}>Trades Récents</div>
+        <div style={{display:'flex',flexDirection:'column',gap:8}}>
+          {recent.map(t => (
+            <div key={t.id} className="trade-item">
+              <div className={`trade-dir ${t.direction === 'LONG' ? 'long' : 'short'}`}>{t.direction === 'LONG' ? '↗' : '↘'}</div>
+              <div className="trade-info">
+                <div className="trade-name">{t.instrument}</div>
+                <div className="trade-meta"><span className={`dir-badge ${t.direction.toLowerCase()}`}>{t.direction}</span><span className="trade-date">{formatDate(t.exitDate || t.entryDate)}</span></div>
+              </div>
+              <div className={`trade-pnl ${t.pnl >= 0 ? 'pos' : 'neg'}`}>{formatPnl(t.pnl)}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="quote-card">
+        <div style={{transition:'opacity 0.4s ease', opacity: quoteFade ? 1 : 0}}>
+          <div className="quote-icon">❝</div>
+          <div className="quote-text">"{quote.text}"</div>
+          <div className="quote-author">— {quote.author}</div>
+        </div>
+        <div style={{display:'flex',justifyContent:'center',gap:5,marginTop:14}}>
+          {QUOTES.map((_,i) => (
+            <div key={i} onClick={() => { setQuoteFade(false); setTimeout(() => { setQuoteIdx(i); setQuoteFade(true); }, 400); }}
+              style={{width: i===quoteIdx ? 16 : 5, height:5, borderRadius:3, background: i===quoteIdx ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.3)', cursor:'pointer', transition:'all 0.3s'}} />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MesTrades({ trades, setTrades, setPage, setEditTrade }) {
+  const [search, setSearch] = useState('');
+  const [filterDir, setFilterDir] = useState('Toutes');
+  const [filterAsset, setFilterAsset] = useState('Tous');
+  const [toast, setToast] = useState('');
+
+  const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 2000); };
+
+  const filtered = trades.filter(t => {
+    const matchSearch = t.instrument.toLowerCase().includes(search.toLowerCase()) || (t.strategy||'').toLowerCase().includes(search.toLowerCase());
+    const matchDir = filterDir === 'Toutes' || t.direction === filterDir;
+    const matchAsset = filterAsset === 'Tous' || t.asset === filterAsset;
+    return matchSearch && matchDir && matchAsset;
+  }).sort((a,b) => b.entryDate.localeCompare(a.entryDate));
+
+  const deleteTrade = (id) => { setTrades(prev => prev.filter(t => t.id !== id)); showToast('Trade supprimé'); };
+
+  return (
+    <div className="content">
+      <div style={{paddingTop:4}}><div className="page-sub">{trades.length} trades enregistrés</div></div>
+      <button className="btn-primary" onClick={() => { setEditTrade(null); setPage('nouveau'); }}>+ Nouveau Trade</button>
+      <div className="search-bar"><span>🔍</span><input placeholder="Rechercher par instrument ou stratégie..." value={search} onChange={e => setSearch(e.target.value)} /></div>
+      <div className="filter-row">
+        <select className="filter-select" value={filterDir} onChange={e => setFilterDir(e.target.value)}>
+          {['Toutes','LONG','SHORT'].map(d => <option key={d}>{d}</option>)}
+        </select>
+        <select className="filter-select" value={filterAsset} onChange={e => setFilterAsset(e.target.value)}>
+          {['Tous','Forex','Actions','Crypto','Indices','Matières Premières'].map(a => <option key={a}>{a}</option>)}
+        </select>
+      </div>
+      <div style={{display:'flex',flexDirection:'column',gap:10}}>
+        {filtered.map(t => (
+          <div key={t.id} className="trade-item" onClick={() => { setEditTrade(t); setPage('nouveau'); }}>
+            <div className={`trade-dir ${t.direction === 'LONG' ? 'long' : 'short'}`}>{t.direction === 'LONG' ? '↗' : '↘'}</div>
+            <div className="trade-info">
+              <div style={{display:'flex',alignItems:'center',gap:8}}><div className="trade-name">{t.instrument}</div><span className={`dir-badge ${t.direction.toLowerCase()}`}>{t.direction}</span></div>
+              <div className="trade-meta"><span className="trade-date">{formatDate(t.entryDate)}</span></div>
+              <div className="trade-stars"><Stars value={t.rating} /></div>
+            </div>
+            <div style={{display:'flex',alignItems:'center',gap:8}}>
+              <div className={`trade-pnl ${t.pnl >= 0 ? 'pos' : 'neg'}`}>{formatPnl(t.pnl)}</div>
+              <button className="trade-del" onClick={e => { e.stopPropagation(); deleteTrade(t.id); }}>🗑</button>
+            </div>
+          </div>
+        ))}
+        {filtered.length === 0 && <div style={{textAlign:'center',color:'var(--muted)',padding:'40px 0',fontSize:14}}>Aucun trade trouvé</div>}
+      </div>
+      {toast && <div className="toast">{toast}</div>}
+    </div>
+  );
+}
+
+// Configs de calcul par classe d'actif
+const ASSET_CALC = {
+  'Forex': {
+    qtyLabel: 'Lots', qtyPlaceholder: 'ex: 0.1 / 1 / 2',
+    extraLabel: 'Valeur du pip (€ par lot)', extraKey: 'pipValue', extraPlaceholder: 'ex: 10 pour paires USD standard',
+    extraDefault: '10',
+    hint: 'Forex : P&L = (pips gagnés) × (valeur pip) × lots. Entrez le P&L réel de votre broker ou utilisez le calcul.',
+    calc: (f) => {
+      const lots = parseFloat(f.qty) || 0;
+      const entry = parseFloat(f.entry) || 0;
+      const exit = parseFloat(f.exit) || 0;
+      const pipVal = parseFloat(f.pipValue) || 10;
+      const fees = parseFloat(f.fees) || 0;
+      if (!lots || !entry || !exit) return null;
+      const pipSize = entry < 10 ? 0.0001 : 0.01; // JPY pairs
+      const pips = f.direction === 'LONG' ? (exit - entry) / pipSize : (entry - exit) / pipSize;
+      return parseFloat((pips * pipVal * lots - fees).toFixed(2));
+    }
+  },
+  'Actions': {
+    qtyLabel: 'Nombre d\'actions', qtyPlaceholder: 'ex: 10 / 100',
+    extraLabel: null,
+    hint: 'Actions : P&L = (prix sortie − prix entrée) × nb actions − frais.',
+    calc: (f) => {
+      const qty = parseFloat(f.qty) || 0;
+      const entry = parseFloat(f.entry) || 0;
+      const exit = parseFloat(f.exit) || 0;
+      const fees = parseFloat(f.fees) || 0;
+      if (!qty || !entry || !exit) return null;
+      const raw = f.direction === 'LONG' ? (exit - entry) * qty : (entry - exit) * qty;
+      return parseFloat((raw - fees).toFixed(2));
+    }
+  },
+  'Crypto': {
+    qtyLabel: 'Quantité (unités)', qtyPlaceholder: 'ex: 0.5 BTC / 10 ETH',
+    extraLabel: null,
+    hint: 'Crypto : P&L = (prix sortie − prix entrée) × quantité − frais.',
+    calc: (f) => {
+      const qty = parseFloat(f.qty) || 0;
+      const entry = parseFloat(f.entry) || 0;
+      const exit = parseFloat(f.exit) || 0;
+      const fees = parseFloat(f.fees) || 0;
+      if (!qty || !entry || !exit) return null;
+      const raw = f.direction === 'LONG' ? (exit - entry) * qty : (entry - exit) * qty;
+      return parseFloat((raw - fees).toFixed(2));
+    }
+  },
+  'Indices': {
+    qtyLabel: 'Contrats / Lots', qtyPlaceholder: 'ex: 1 / 0.5',
+    extraLabel: 'Valeur du point (€ par contrat)', extraKey: 'pointValue', extraPlaceholder: 'ex: 25 DAX, 20 S&P500, 10 NAS',
+    extraDefault: '25',
+    hint: 'Indices : P&L = (points gagnés) × (valeur du point) × contrats − frais.',
+    calc: (f) => {
+      const qty = parseFloat(f.qty) || 0;
+      const entry = parseFloat(f.entry) || 0;
+      const exit = parseFloat(f.exit) || 0;
+      const pointVal = parseFloat(f.pointValue) || 25;
+      const fees = parseFloat(f.fees) || 0;
+      if (!qty || !entry || !exit) return null;
+      const points = f.direction === 'LONG' ? (exit - entry) : (entry - exit);
+      return parseFloat((points * pointVal * qty - fees).toFixed(2));
+    }
+  },
+  'Matières Premières': {
+    qtyLabel: 'Lots / Contrats', qtyPlaceholder: 'ex: 1 / 0.1',
+    extraLabel: 'Valeur du point (€ par lot)', extraKey: 'pointValue', extraPlaceholder: 'ex: 100 pour GOLD XAU/USD',
+    extraDefault: '100',
+    hint: 'Matières premières : P&L = (points gagnés) × (valeur du point) × lots − frais.',
+    calc: (f) => {
+      const qty = parseFloat(f.qty) || 0;
+      const entry = parseFloat(f.entry) || 0;
+      const exit = parseFloat(f.exit) || 0;
+      const pointVal = parseFloat(f.pointValue) || 100;
+      const fees = parseFloat(f.fees) || 0;
+      if (!qty || !entry || !exit) return null;
+      const points = f.direction === 'LONG' ? (exit - entry) : (entry - exit);
+      return parseFloat((points * pointVal * qty - fees).toFixed(2));
+    }
+  },
+  'Options': {
+    qtyLabel: 'Contrats', qtyPlaceholder: 'ex: 1 / 5',
+    extraLabel: 'Prime payée (€)', extraKey: 'premium', extraPlaceholder: 'ex: 250',
+    extraDefault: '',
+    hint: 'Options : entrez directement le P&L réel (différence de prime × multiplicateur).',
+    calc: null
+  },
+  'Autre': {
+    qtyLabel: 'Quantité', qtyPlaceholder: 'Taille de position',
+    extraLabel: null,
+    hint: 'Entrez directement le P&L réel.',
+    calc: null
+  }
+};
+
+// Table de valeurs de pip par paire (pour 1 lot standard, en USD, converti approximativement en EUR)
+// Valeur pip = valeur pour 1 lot (100 000 unités) en devise de cotation
+const PIP_VALUES = {
+  // Paires majeures USD (pip = 0.0001, pip value = 10 USD/lot ≈ 9.2 €)
+  'EUR/USD': { value: 10, note: '10 USD/lot (paire majeure USD)' },
+  'GBP/USD': { value: 10, note: '10 USD/lot (paire majeure USD)' },
+  'AUD/USD': { value: 10, note: '10 USD/lot (paire majeure USD)' },
+  'NZD/USD': { value: 10, note: '10 USD/lot (paire majeure USD)' },
+  'USD/CHF': { value: 9.2, note: '~9.2 €/lot (varie avec EUR/CHF)' },
+  'USD/CAD': { value: 7.4, note: '~7.4 €/lot (varie avec EUR/CAD)' },
+  // Paires JPY (pip = 0.01)
+  'USD/JPY': { value: 9.2, note: '~9.2 €/lot (pip = 0.01, varie avec EUR/JPY)' },
+  'EUR/JPY': { value: 9.2, note: '~9.2 €/lot (pip = 0.01)' },
+  'GBP/JPY': { value: 9.2, note: '~9.2 €/lot (pip = 0.01)' },
+  'AUD/JPY': { value: 9.2, note: '~9.2 €/lot (pip = 0.01)' },
+  'CHF/JPY': { value: 9.2, note: '~9.2 €/lot (pip = 0.01)' },
+  'CAD/JPY': { value: 9.2, note: '~9.2 €/lot (pip = 0.01)' },
+  'NZD/JPY': { value: 9.2, note: '~9.2 €/lot (pip = 0.01)' },
+  // Paires croisées EUR
+  'EUR/GBP': { value: 12.7, note: '~12.7 €/lot (varie avec GBP/EUR)' },
+  'EUR/CHF': { value: 10, note: '~10 €/lot' },
+  'EUR/CAD': { value: 7.4, note: '~7.4 €/lot' },
+  'EUR/AUD': { value: 6.4, note: '~6.4 €/lot' },
+  'EUR/NZD': { value: 5.9, note: '~5.9 €/lot' },
+  // Paires croisées GBP
+  'GBP/CHF': { value: 11.5, note: '~11.5 €/lot' },
+  'GBP/CAD': { value: 7.4, note: '~7.4 €/lot' },
+  'GBP/AUD': { value: 6.4, note: '~6.4 €/lot' },
+  'GBP/NZD': { value: 5.9, note: '~5.9 €/lot' },
+  // Paires exotiques communes
+  'USD/SEK': { value: 0.88, note: '~0.88 €/lot' },
+  'USD/NOK': { value: 0.88, note: '~0.88 €/lot' },
+  'USD/DKK': { value: 1.34, note: '~1.34 €/lot' },
+  'USD/HUF': { value: 0.026, note: '~0.026 €/lot' },
+  'USD/PLN': { value: 2.3, note: '~2.3 €/lot' },
+  'USD/MXN': { value: 0.5, note: '~0.5 €/lot' },
+  'USD/SGD': { value: 7.4, note: '~7.4 €/lot' },
+  'USD/HKD': { value: 1.27, note: '~1.27 €/lot' },
+  'USD/ZAR': { value: 0.52, note: '~0.52 €/lot' },
+  'USD/TRY': { value: 0.29, note: '~0.29 €/lot' },
+  'EUR/SEK': { value: 0.88, note: '~0.88 €/lot' },
+  'EUR/NOK': { value: 0.88, note: '~0.88 €/lot' },
+  'EUR/PLN': { value: 2.3, note: '~2.3 €/lot' },
+  'EUR/HUF': { value: 0.026, note: '~0.026 €/lot' },
+  'EUR/CZK': { value: 0.038, note: '~0.038 €/lot' },
+  'GBP/SEK': { value: 0.88, note: '~0.88 €/lot' },
+  // XAU/XAG
+  'XAU/USD': { value: 10, note: '10 USD/lot (or, pip = 0.01)' },
+  'XAG/USD': { value: 5, note: '5 USD/lot (argent)' },
+};
+
+function getPipValueForPair(instrument) {
+  const upper = instrument.toUpperCase().replace(' ', '');
+  // Cherche correspondance exacte
+  for (const [key, val] of Object.entries(PIP_VALUES)) {
+    if (key.toUpperCase() === upper) return val;
+  }
+  // Cherche correspondance partielle (ex: "EURUSD" → "EUR/USD")
+  for (const [key, val] of Object.entries(PIP_VALUES)) {
+    if (key.replace('/','').toUpperCase() === upper) return val;
+  }
+  return null;
+}
+
+function NouveauTrade({ trades, setTrades, setPage, editTrade, savedStrategies, setSavedStrategies }) {
+  const [form, setForm] = useState(() => {
+    const base = editTrade || { instrument: '', asset: 'Forex', direction: 'LONG', qty: '', entry: '', exit: '', entryDate: '', exitDate: '', fees: 0, strategy: '', rating: 0, notes: '', psychology: '', images: [], manualPnl: '', pipValue: '10', pointValue: '25', premium: '' };
+    return base;
+  });
+  const [pnlMode, setPnlMode] = useState(editTrade?.manualPnl !== '' && editTrade?.manualPnl !== undefined ? 'manual' : 'auto');
+  const fileInputRef = useRef(null);
+  const [toast, setToast] = useState('');
+
+  const set = (k, v) => {
+    setForm(prev => {
+      const updated = { ...prev, [k]: v };
+      // Auto-fill pip value when instrument changes and asset is Forex
+      if (k === 'instrument' && prev.asset === 'Forex') {
+        const pip = getPipValueForPair(v);
+        if (pip) updated.pipValue = String(pip.value);
+      }
+      return updated;
+    });
+  };
+
+  const assetCfg = ASSET_CALC[form.asset] || ASSET_CALC['Autre'];
+
+  const autoPnl = assetCfg.calc ? assetCfg.calc(form) : null;
+  const finalPnl = pnlMode === 'manual'
+    ? (form.manualPnl !== '' ? parseFloat(form.manualPnl) : null)
+    : autoPnl;
+
+  // Quand on change de classe, reset les champs spécifiques
+  const changeAsset = (val) => {
+    const cfg = ASSET_CALC[val] || ASSET_CALC['Autre'];
+    const pip = val === 'Forex' ? getPipValueForPair(form.instrument) : null;
+    setForm(prev => ({
+      ...prev, asset: val,
+      pipValue: cfg.extraKey === 'pipValue' ? (pip ? String(pip.value) : (cfg.extraDefault || '')) : prev.pipValue,
+      pointValue: cfg.extraKey === 'pointValue' ? (cfg.extraDefault || '') : prev.pointValue,
+      premium: cfg.extraKey === 'premium' ? '' : prev.premium,
+    }));
+    if (!cfg.calc) setPnlMode('manual');
+  };
+
+  const handleSave = () => {
+    if (!form.instrument || !form.entryDate) { setToast('Remplissez les champs obligatoires'); setTimeout(() => setToast(''), 2000); return; }
+    if (finalPnl === null) { setToast('Entrez un P&L ou complétez les prix'); setTimeout(() => setToast(''), 2000); return; }
+    const tradeData = { ...form, pnl: finalPnl, manualPnl: pnlMode === 'manual' ? form.manualPnl : '' };
+    if (editTrade) {
+      setTrades(prev => prev.map(t => t.id === editTrade.id ? { ...tradeData, id: editTrade.id } : t));
+    } else {
+      setTrades(prev => [...prev, { ...tradeData, id: Date.now() }]);
+    }
+    setPage('trades');
+  };
+
+  return (
+    <div className="content">
+      <div style={{paddingTop:4}}><div className="page-sub">Enregistrez les détails de votre trade</div></div>
+      <div className="form-section">
+        <div className="form-group">
+          <div className="form-label">Instrument <span className="req">*</span></div>
+          <input className="form-input" placeholder="ex: EUR/USD, AAPL" value={form.instrument}
+            onChange={e => set('instrument', e.target.value)} />
+          {/* Pip value hint when detected */}
+          {form.asset === 'Forex' && form.instrument && (() => {
+            const pip = getPipValueForPair(form.instrument);
+            return pip ? (
+              <div style={{fontSize:11, color:'var(--green)', fontWeight:600, marginTop:4, display:'flex', alignItems:'center', gap:5}}>
+                <span>✓</span> Valeur du pip détectée : <strong>{pip.value} €/lot</strong> — <span style={{fontWeight:400, color:'var(--muted)'}}>{pip.note}</span>
+              </div>
+            ) : null;
+          })()}
+        </div>
+        <div className="form-group">
+          <div className="form-label">Classe d'actifs</div>
+          <select className="form-select" value={form.asset} onChange={e => changeAsset(e.target.value)}>
+            {['Forex','Actions','Crypto','Indices','Matières Premières','Options','Autre'].map(a => <option key={a}>{a}</option>)}
+          </select>
+        </div>
+        {/* Hint selon la classe */}
+        <div style={{background:'var(--blue-light)',borderRadius:10,padding:'9px 12px',fontSize:12,color:'var(--blue)',lineHeight:1.5}}>
+          ℹ️ {assetCfg.hint}
+        </div>
+        <div className="form-group">
+          <div className="form-label">Direction <span className="req">*</span></div>
+          <div className="direction-toggle">
+            <button className={`dir-btn long ${form.direction === 'LONG' ? 'active' : ''}`} onClick={() => set('direction', 'LONG')}>↗ LONG</button>
+            <button className={`dir-btn short ${form.direction === 'SHORT' ? 'active' : ''}`} onClick={() => set('direction', 'SHORT')}>↘ SHORT</button>
+          </div>
+        </div>
+        <div className="form-group">
+          <div className="form-label">{assetCfg.qtyLabel}</div>
+          <input className="form-input" type="number" step="0.01" placeholder={assetCfg.qtyPlaceholder} value={form.qty} onChange={e => set('qty', e.target.value)} />
+        </div>
+
+        {/* Paramètre spécifique (pip value / point value / prime) */}
+        {assetCfg.extraLabel && (
+          <div className="form-group">
+            <div className="form-label">{assetCfg.extraLabel}</div>
+            <input className="form-input" type="number" step="0.01" placeholder={assetCfg.extraPlaceholder}
+              value={form[assetCfg.extraKey] || ''}
+              onChange={e => set(assetCfg.extraKey, e.target.value)} />
+          </div>
+        )}
+
+        <div className="form-group">
+          <div className="form-label">Prix d'entrée <span className="req">*</span></div>
+          <input className="form-input" type="number" step="0.0001" placeholder="0.00" value={form.entry} onChange={e => set('entry', e.target.value)} />
+        </div>
+        <div className="form-group">
+          <div className="form-label">Prix de sortie</div>
+          <input className="form-input" type="number" step="0.0001" placeholder="0.00 (vide si ouvert)" value={form.exit} onChange={e => set('exit', e.target.value)} />
+        </div>
+
+        {/* Toggle mode P&L */}
+        <div style={{border:'1.5px solid var(--border)',borderRadius:12,overflow:'hidden'}}>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr'}}>
+            <button onClick={() => setPnlMode('manual')} style={{padding:'10px',border:'none',background: pnlMode==='manual' ? 'var(--blue)' : 'var(--bg)',color: pnlMode==='manual' ? 'white' : 'var(--muted)',fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:13,cursor:'pointer',transition:'all 0.15s'}}>
+              ✏️ P&L Manuel
+            </button>
+            <button onClick={() => { if(assetCfg.calc) setPnlMode('auto'); }} style={{padding:'10px',border:'none',background: pnlMode==='auto' ? 'var(--blue)' : 'var(--bg)',color: pnlMode==='auto' ? 'white' : (!assetCfg.calc ? 'var(--border)' : 'var(--muted)'),fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:13,cursor: assetCfg.calc ? 'pointer' : 'not-allowed',transition:'all 0.15s'}}>
+              🧮 Auto
+            </button>
+          </div>
+          <div style={{padding:'14px',borderTop:'1.5px solid var(--border)',background:'var(--bg)'}}>
+            {pnlMode === 'manual' ? (
+              <div className="form-group" style={{margin:0}}>
+                <div className="form-label" style={{marginBottom:6}}>P&L réel (€) <span className="req">*</span> <span style={{fontWeight:400,color:'var(--muted)',fontSize:11}}>— tel qu'affiché par votre broker</span></div>
+                <input className="form-input" type="number" step="0.01" placeholder="ex: +150.50 ou -80.00"
+                  value={form.manualPnl}
+                  onChange={e => set('manualPnl', e.target.value)}
+                  style={{fontSize:16,fontWeight:700}} />
+              </div>
+            ) : (
+              <div>
+                <div style={{fontSize:12,color:'var(--muted)',marginBottom:8}}>Calcul automatique basé sur les prix et paramètres saisis :</div>
+                {autoPnl !== null ? (
+                  <div style={{background: autoPnl >= 0 ? 'var(--green-bg)' : 'var(--red-light)', borderRadius: 10, padding: '10px 14px', display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+                    <span style={{fontSize:13,fontWeight:600,color: autoPnl >= 0 ? 'var(--green)' : 'var(--red)'}}>P&L estimé</span>
+                    <span style={{fontFamily:'Syne',fontWeight:800,fontSize:18,color: autoPnl >= 0 ? 'var(--green)' : 'var(--red)'}}>{formatPnl(autoPnl)}</span>
+                  </div>
+                ) : (
+                  <div style={{color:'var(--muted)',fontSize:13,textAlign:'center',padding:'8px 0'}}>Remplissez les prix et la quantité pour voir le calcul</div>
+                )}
+                {autoPnl !== null && <div style={{fontSize:11,color:'var(--muted)',marginTop:8,textAlign:'center'}}>⚠️ Vérifiez avec votre broker — le résultat réel peut différer</div>}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Résumé P&L final */}
+        {finalPnl !== null && (
+          <div style={{background: finalPnl >= 0 ? 'var(--green-bg)' : 'var(--red-light)', borderRadius:12, padding:'12px 16px', display:'flex', justifyContent:'space-between', alignItems:'center', border: `1.5px solid ${finalPnl >= 0 ? 'var(--green)' : 'var(--red)'}20`}}>
+            <span style={{fontSize:13,fontWeight:700,color: finalPnl >= 0 ? 'var(--green)' : 'var(--red)'}}>P&L enregistré</span>
+            <span style={{fontFamily:'Syne',fontWeight:800,fontSize:20,color: finalPnl >= 0 ? 'var(--green)' : 'var(--red)'}}>{formatPnl(finalPnl)}</span>
+          </div>
+        )}
+
+        <div className="form-group">
+          <div className="form-label">Date &amp; heure d'entrée <span className="req">*</span></div>
+          <input className="form-input" type="datetime-local" value={form.entryDate} onChange={e => set('entryDate', e.target.value)} />
+        </div>
+        <div className="form-group">
+          <div className="form-label">Date &amp; heure de sortie</div>
+          <input className="form-input" type="datetime-local" value={form.exitDate} onChange={e => set('exitDate', e.target.value)} />
+        </div>
+        <div className="form-group">
+          <div className="form-label">Frais / Commissions (€)</div>
+          <input className="form-input" type="number" step="0.01" placeholder="0" value={form.fees} onChange={e => set('fees', e.target.value)} />
+        </div>
+        <div className="form-group">
+          <div className="form-label">Stratégie</div>
+          {/* Saved strategy pills */}
+          {savedStrategies && savedStrategies.length > 0 && (
+            <div style={{display:'flex', flexWrap:'wrap', gap:6, marginBottom:8}}>
+              {savedStrategies.map(s => (
+                <button key={s} onClick={() => set('strategy', s)}
+                  style={{padding:'4px 12px', borderRadius:20, border:'1.5px solid', fontSize:12, fontWeight:600, cursor:'pointer', transition:'all 0.15s',
+                    background: form.strategy === s ? 'var(--blue)' : 'var(--bg)',
+                    color: form.strategy === s ? 'white' : 'var(--muted)',
+                    borderColor: form.strategy === s ? 'var(--blue)' : 'var(--border)',
+                  }}>
+                  {s}
+                </button>
+              ))}
+            </div>
+          )}
+          {/* Free text input */}
+          <div style={{display:'flex', gap:8}}>
+            <input className="form-input" style={{flex:1}} placeholder="ex: Breakout, Scalping" value={form.strategy} onChange={e => set('strategy', e.target.value)} />
+            <button onClick={() => {
+              const val = form.strategy.trim();
+              if (!val) return;
+              if (savedStrategies.includes(val)) return;
+              setSavedStrategies(prev => [...prev, val]);
+            }} title="Sauvegarder cette stratégie"
+              style={{flexShrink:0, width:40, height:42, borderRadius:10, border:'1.5px solid var(--border)', background:'var(--bg)', color: form.strategy.trim() && !savedStrategies.includes(form.strategy.trim()) ? 'var(--blue)' : 'var(--muted)', cursor:'pointer', fontSize:18, display:'flex', alignItems:'center', justifyContent:'center', transition:'all 0.15s'}}>
+              +
+            </button>
+          </div>
+          {form.strategy.trim() && !savedStrategies.includes(form.strategy.trim()) && (
+            <div style={{fontSize:11, color:'var(--blue)', marginTop:4}}>Appuyez sur + pour sauvegarder cette stratégie</div>
+          )}
+        </div>
+        <div className="form-group">
+          <div className="form-label">Évaluation du trade</div>
+          <div className="stars-input">
+            {[1,2,3,4,5].map(i => (
+              <button key={i} className="star-btn" onClick={() => set('rating', i)} style={{color: i <= form.rating ? '#F59E0B' : '#D1D5DB'}}>{i <= form.rating ? '★' : '☆'}</button>
+            ))}
+          </div>
+        </div>
+        <div className="form-group">
+          <div className="form-label">Notes techniques</div>
+          <textarea className="form-textarea" placeholder="Confluences d'entrée, analyse technique, leçons apprises..." value={form.notes} onChange={e => set('notes', e.target.value)} />
+        </div>
+        <div className="form-group">
+          <div className="section-label purple">🧠 Ressenti & Psychologie</div>
+          <textarea className="form-textarea" placeholder="Comment vous sentiez-vous avant, pendant et après ce trade ? Avez-vous respecté votre plan ? Avez-vous ressenti de la discipline ?" value={form.psychology} onChange={e => set('psychology', e.target.value)} />
+        </div>
+        <div className="form-group">
+          <div className="section-label blue">🖼 Captures d'écran des graphiques</div>
+          <div style={{fontSize:12,color:'var(--muted)',marginBottom:8}}>Ajoutez vos charts de prise de position pour garder une trace de vos confluences.</div>
+          <input ref={fileInputRef} type="file" accept="image/*" multiple style={{display:'none'}} onChange={e => {
+            const files = Array.from(e.target.files);
+            files.forEach(file => {
+              const reader = new FileReader();
+              reader.onload = ev => set('images', [...(form.images||[]), ev.target.result]);
+              reader.readAsDataURL(file);
+            });
+            e.target.value = '';
+          }} />
+          {(form.images||[]).length > 0 && (
+            <div style={{display:'flex',flexWrap:'wrap',gap:8,marginBottom:8}}>
+              {(form.images||[]).map((src, i) => (
+                <div key={i} style={{position:'relative',width:90,height:90}}>
+                  <img src={src} alt="" style={{width:90,height:90,objectFit:'cover',borderRadius:10,border:'1.5px solid var(--border)'}} />
+                  <button onClick={() => set('images', form.images.filter((_,j)=>j!==i))} style={{position:'absolute',top:-6,right:-6,width:22,height:22,borderRadius:'50%',background:'var(--red)',color:'white',border:'2px solid white',cursor:'pointer',fontSize:12,display:'flex',alignItems:'center',justifyContent:'center',lineHeight:1}}>✕</button>
+                </div>
+              ))}
+            </div>
+          )}
+          <div className="upload-zone" onClick={() => fileInputRef.current.click()}>
+            <div className="upload-icon">🖼</div>
+            <div className="upload-label">+ Ajouter une image</div>
+          </div>
+        </div>
+        <div className="btn-row">
+          <button className="btn-cancel" onClick={() => setPage('trades')}>Annuler</button>
+          <button className="btn-save" onClick={handleSave}>💾 {editTrade ? 'Mettre à jour' : 'Enregistrer'}</button>
+        </div>
+      </div>
+      {toast && <div className="toast">{toast}</div>}
+    </div>
+  );
+}
+
+function TradeCalendar({ trades }) {
+  const now = new Date();
+  const [viewYear, setViewYear] = useState(now.getFullYear());
+  const [viewMonth, setViewMonth] = useState(now.getMonth());
+  const [selected, setSelected] = useState(null);
+
+  const MONTHS = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
+  const DAYS = ['L','M','M','J','V','S','D'];
+
+  // Build daily P&L map: 'YYYY-MM-DD' -> { pnl, trades[] }
+  const dayMap = {};
+  trades.forEach(t => {
+    const key = t.entryDate ? t.entryDate.split('T')[0] : null;
+    if (!key) return;
+    if (!dayMap[key]) dayMap[key] = { pnl: 0, trades: [] };
+    dayMap[key].pnl = parseFloat((dayMap[key].pnl + t.pnl).toFixed(2));
+    dayMap[key].trades.push(t);
+  });
+
+  // Days in month
+  const firstDay = new Date(viewYear, viewMonth, 1);
+  const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+  // Start on Monday (0=Mon ... 6=Sun)
+  let startDow = firstDay.getDay(); // 0=Sun
+  startDow = startDow === 0 ? 6 : startDow - 1; // convert to Mon-based
+
+  const cells = [];
+  for (let i = 0; i < startDow; i++) cells.push(null);
+  for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+
+  const prevMonth = () => { if (viewMonth === 0) { setViewMonth(11); setViewYear(y => y-1); } else setViewMonth(m => m-1); setSelected(null); };
+  const nextMonth = () => { if (viewMonth === 11) { setViewMonth(0); setViewYear(y => y+1); } else setViewMonth(m => m+1); setSelected(null); };
+
+  const todayKey = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+
+  // Monthly summary
+  const monthTotal = Object.entries(dayMap)
+    .filter(([k]) => k.startsWith(`${viewYear}-${String(viewMonth+1).padStart(2,'0')}`))
+    .reduce((s,[,v]) => s + v.pnl, 0);
+
+  const selectedKey = selected ? `${viewYear}-${String(viewMonth+1).padStart(2,'0')}-${String(selected).padStart(2,'0')}` : null;
+  const selectedData = selectedKey ? dayMap[selectedKey] : null;
+
+  return (
+    <div className="chart-card">
+      {/* Header */}
+      <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:14}}>
+        <div>
+          <div className="chart-title">Calendrier de Trading</div>
+          <div className="chart-sub">P&L journalier</div>
+        </div>
+        <div style={{display:'flex', alignItems:'center', gap:6}}>
+          <button onClick={prevMonth} style={{width:28,height:28,borderRadius:8,border:'1px solid var(--border)',background:'var(--bg)',color:'var(--text)',cursor:'pointer',fontSize:14,display:'flex',alignItems:'center',justifyContent:'center'}}>‹</button>
+          <span style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:13,minWidth:110,textAlign:'center'}}>{MONTHS[viewMonth]} {viewYear}</span>
+          <button onClick={nextMonth} style={{width:28,height:28,borderRadius:8,border:'1px solid var(--border)',background:'var(--bg)',color:'var(--text)',cursor:'pointer',fontSize:14,display:'flex',alignItems:'center',justifyContent:'center'}}>›</button>
+        </div>
+      </div>
+
+      {/* Monthly total */}
+      <div style={{background: monthTotal >= 0 ? 'var(--green-bg)' : 'var(--red-light)', borderRadius:10, padding:'7px 12px', display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:14}}>
+        <span style={{fontSize:12, fontWeight:600, color: monthTotal >= 0 ? 'var(--green)' : 'var(--red)'}}>Total du mois</span>
+        <span style={{fontFamily:"'Syne',sans-serif", fontWeight:800, fontSize:14, color: monthTotal >= 0 ? 'var(--green)' : 'var(--red)'}}>{monthTotal >= 0 ? '+' : ''}{monthTotal.toFixed(2)} €</span>
+      </div>
+
+      {/* Day headers */}
+      <div style={{display:'grid', gridTemplateColumns:'repeat(7,1fr)', gap:3, marginBottom:3}}>
+        {DAYS.map((d,i) => (
+          <div key={i} style={{textAlign:'center', fontSize:10, fontWeight:700, color:'var(--muted)', padding:'2px 0'}}>{d}</div>
+        ))}
+      </div>
+
+      {/* Calendar grid */}
+      <div style={{display:'grid', gridTemplateColumns:'repeat(7,1fr)', gap:3}}>
+        {cells.map((day, idx) => {
+          if (!day) return <div key={idx} />;
+          const key = `${viewYear}-${String(viewMonth+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+          const data = dayMap[key];
+          const isToday = key === todayKey;
+          const isSelected = selected === day;
+          const hasTrades = !!data;
+          const isWin = hasTrades && data.pnl >= 0;
+
+          let bg = 'var(--bg)';
+          let color = 'var(--muted)';
+          let border = '1px solid var(--border)';
+          if (hasTrades) {
+            bg = isWin ? 'rgba(22,163,74,0.15)' : 'rgba(220,38,38,0.15)';
+            color = isWin ? 'var(--green)' : 'var(--red)';
+            border = `1.5px solid ${isWin ? 'rgba(22,163,74,0.4)' : 'rgba(220,38,38,0.4)'}`;
+          }
+          if (isSelected) border = `2px solid ${isWin ? 'var(--green)' : hasTrades ? 'var(--red)' : 'var(--blue)'}`;
+          if (isToday && !hasTrades) border = '1.5px solid var(--blue)';
+
+          return (
+            <div key={idx} onClick={() => setSelected(isSelected ? null : day)}
+              style={{borderRadius:8, border, background:bg, padding:'4px 2px', cursor: hasTrades ? 'pointer' : 'default', minHeight:46, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:1, transition:'all 0.15s', position:'relative'}}>
+              <div style={{fontSize:11, fontWeight: isToday ? 800 : 500, color: isToday ? 'var(--blue)' : color}}>{day}</div>
+              {hasTrades && (
+                <div style={{fontSize:9, fontWeight:700, color, lineHeight:1, textAlign:'center'}}>
+                  {data.pnl >= 0 ? '+' : ''}{data.pnl.toFixed(0)}€
+                </div>
+              )}
+              {hasTrades && (
+                <div style={{width:4, height:4, borderRadius:'50%', background: isWin ? 'var(--green)' : 'var(--red)', marginTop:1}} />
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Selected day detail */}
+      {selectedData && (
+        <div style={{marginTop:14, padding:'12px 14px', background:'var(--bg)', borderRadius:12, border:'1px solid var(--border)'}}>
+          <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:10}}>
+            <div style={{fontFamily:"'Syne',sans-serif", fontWeight:700, fontSize:14}}>
+              {selected} {MONTHS[viewMonth]}
+            </div>
+            <div style={{fontFamily:"'Syne',sans-serif", fontWeight:800, fontSize:15, color: selectedData.pnl >= 0 ? 'var(--green)' : 'var(--red)'}}>
+              {selectedData.pnl >= 0 ? '+' : ''}{selectedData.pnl.toFixed(2)} €
+            </div>
+          </div>
+          <div style={{display:'flex', flexDirection:'column', gap:6}}>
+            {selectedData.trades.map(t => (
+              <div key={t.id} style={{display:'flex', alignItems:'center', gap:8, fontSize:12}}>
+                <span className={`dir-badge ${t.direction.toLowerCase()}`}>{t.direction}</span>
+                <span style={{fontWeight:700, color:'var(--text)'}}>{t.instrument}</span>
+                <span style={{color:'var(--muted)', flex:1}}>{t.strategy || '—'}</span>
+                <span style={{fontWeight:700, color: t.pnl >= 0 ? 'var(--green)' : 'var(--red)'}}>{t.pnl >= 0 ? '+' : ''}{t.pnl.toFixed(2)} €</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Legend */}
+      <div style={{display:'flex', gap:16, marginTop:12, justifyContent:'center'}}>
+        <div style={{display:'flex', alignItems:'center', gap:5, fontSize:11, color:'var(--muted)'}}>
+          <div style={{width:10, height:10, borderRadius:3, background:'rgba(22,163,74,0.15)', border:'1.5px solid rgba(22,163,74,0.4)'}} />
+          Gain
+        </div>
+        <div style={{display:'flex', alignItems:'center', gap:5, fontSize:11, color:'var(--muted)'}}>
+          <div style={{width:10, height:10, borderRadius:3, background:'rgba(220,38,38,0.15)', border:'1.5px solid rgba(220,38,38,0.4)'}} />
+          Perte
+        </div>
+        <div style={{display:'flex', alignItems:'center', gap:5, fontSize:11, color:'var(--muted)'}}>
+          <div style={{width:10, height:10, borderRadius:3, border:'1.5px solid var(--blue)'}} />
+          Aujourd'hui
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Analyses({ trades, theme }) {
+  const totalPnl = trades.reduce((s,t) => s + t.pnl, 0);
+  const wins = trades.filter(t => t.pnl > 0);
+  const losses = trades.filter(t => t.pnl < 0);
+  const best = trades.reduce((b,t) => t.pnl > (b?.pnl ?? -Infinity) ? t : b, null);
+  const worst = trades.reduce((w,t) => t.pnl < (w?.pnl ?? Infinity) ? t : w, null);
+  const longs = trades.filter(t => t.direction === 'LONG');
+  const shorts = trades.filter(t => t.direction === 'SHORT');
+  const longPnl = longs.reduce((s,t) => s+t.pnl, 0);
+  const shortPnl = shorts.reduce((s,t) => s+t.pnl, 0);
+
+  // by asset
+  const assets = {};
+  trades.forEach(t => { if (!assets[t.asset]) assets[t.asset] = 0; assets[t.asset] += t.pnl; });
+
+  // by strategy
+  const strats = {};
+  trades.forEach(t => {
+    const s = t.strategy || 'N/A';
+    if (!strats[s]) strats[s] = { trades: 0, wins: 0, pnl: 0 };
+    strats[s].trades++;
+    if (t.pnl > 0) strats[s].wins++;
+    strats[s].pnl += t.pnl;
+  });
+  const stratList = Object.entries(strats).sort((a,b) => b[1].pnl - a[1].pnl);
+
+  const [periodMode, setPeriodMode] = useState('month');
+  const [recapSelKey, setRecapSelKey] = useState(null);
+
+  const getPeriodData = () => {
+    const MONTH_NAMES = ['Jan','Fév','Mar','Avr','Mai','Juin','Juil','Aoû','Sep','Oct','Nov','Déc'];
+    const grouped = {};
+    trades.forEach(t => {
+      const d = new Date(t.entryDate.split('T')[0]);
+      const key = periodMode === 'month'
+        ? `${MONTH_NAMES[d.getMonth()]} ${d.getFullYear()}`
+        : `${d.getFullYear()}`;
+      if (!grouped[key]) grouped[key] = 0;
+      grouped[key] = parseFloat((grouped[key] + t.pnl).toFixed(2));
+    });
+    // Sort chronologically
+    const sorted = Object.entries(grouped).sort((a, b) => {
+      if (periodMode === 'year') return parseInt(a[0]) - parseInt(b[0]);
+      const parseKey = k => { const [m, y] = k.split(' '); return parseInt(y) * 100 + MONTH_NAMES.indexOf(m); };
+      return parseKey(a[0]) - parseKey(b[0]);
+    });
+    return { labels: sorted.map(e => e[0]), data: sorted.map(e => e[1]) };
+  };
+
+  const donutRef = useRef(null);
+  const barRef = useRef(null);
+  const periodRef = useRef(null);
+  const donutChart = useRef(null);
+  const barChart = useRef(null);
+  const periodChart = useRef(null);
+
+  useEffect(() => {
+    if (!donutRef.current) return;
+    if (donutChart.current) donutChart.current.destroy();
+    const textColor = getComputedStyle(document.body).getPropertyValue('--text').trim() || '#1A1D23';
+    donutChart.current = new Chart(donutRef.current, {
+      type: 'doughnut',
+      data: { labels: ['Gagnants', 'Perdants'], datasets: [{ data: [wins.length, losses.length], backgroundColor: ['#16A34A','#DC2626'], borderWidth: 0 }] },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { font: { family: 'DM Sans', size: 12 }, color: textColor, padding: 16 } } }, cutout: '65%' }
+    });
+    return () => { if (donutChart.current) donutChart.current.destroy(); };
+  }, [trades, theme]);
+
+  useEffect(() => {
+    if (!barRef.current) return;
+    if (barChart.current) barChart.current.destroy();
+    const labels = Object.keys(assets);
+    const data = Object.values(assets);
+    barChart.current = new Chart(barRef.current, {
+      type: 'bar',
+      data: { labels, datasets: [{ data, backgroundColor: data.map(v => v >= 0 ? '#16A34A' : '#DC2626'), borderRadius: 4 }] },
+      options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { ticks: { font: { size: 10, family: 'DM Sans' }, color: '#7A8299' }, grid: { color: 'rgba(0,0,0,0.05)' } }, y: { ticks: { font: { size: 11, family: 'DM Sans' }, color: '#7A8299' }, grid: { display: false } } } }
+    });
+    return () => { if (barChart.current) barChart.current.destroy(); };
+  }, [trades]);
+
+  useEffect(() => {
+    if (!periodRef.current) return;
+    if (periodChart.current) periodChart.current.destroy();
+    const { labels, data } = getPeriodData();
+    if (!labels.length) { periodChart.current = null; return; }
+    periodChart.current = new Chart(periodRef.current, {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [{
+          data,
+          backgroundColor: data.map(v => v >= 0 ? 'rgba(22,163,74,0.85)' : 'rgba(220,38,38,0.85)'),
+          borderRadius: 6,
+          borderSkipped: false,
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: { label: ctx => `  ${ctx.raw >= 0 ? '+' : ''}${ctx.raw.toFixed(2)} €` } }
+        },
+        scales: {
+          x: {
+            ticks: { font: { size: 10, family: 'DM Sans' }, color: '#7A8299', maxRotation: 45 },
+            grid: { display: false }
+          },
+          y: {
+            ticks: { font: { size: 10, family: 'DM Sans' }, color: '#7A8299', callback: v => v + ' €' },
+            grid: { color: 'rgba(0,0,0,0.05)' },
+            border: { dash: [4, 4] }
+          }
+        }
+      }
+    });
+    return () => { if (periodChart.current) periodChart.current.destroy(); };
+  }, [trades, periodMode]);
+
+  return (
+    <div className="content">
+      <div style={{paddingTop:4}}><div className="page-sub">Statistiques détaillées de vos performances</div></div>
+
+      {/* Récap mensuel — mois unique avec navigation */}
+      {(() => {
+        const MONTH_NAMES = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
+        const MONTH_SHORT = ['Jan','Fév','Mar','Avr','Mai','Juin','Juil','Aoû','Sep','Oct','Nov','Déc'];
+        const months = {};
+        trades.forEach(t => {
+          const d = new Date(t.entryDate.split('T')[0]);
+          const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+          if (!months[key]) months[key] = [];
+          months[key].push(t);
+        });
+        const monthKeys = Object.keys(months).sort();
+        if (monthKeys.length === 0) return null;
+        const defaultKey = monthKeys[monthKeys.length - 1];
+        const activeKey = (recapSelKey && months[recapSelKey]) ? recapSelKey : defaultKey;
+        const idx = monthKeys.indexOf(activeKey);
+        const canPrev = idx > 0;
+        const canNext = idx < monthKeys.length - 1;
+        const [yr, mo] = activeKey.split('-').map(Number);
+        const label = `${MONTH_NAMES[mo - 1]} ${yr}`;
+        const ts = [...months[activeKey]].sort((a,b) => a.entryDate.localeCompare(b.entryDate));
+        const wins = ts.filter(t => t.pnl > 0);
+        const losses = ts.filter(t => t.pnl < 0);
+        const totalPnl = parseFloat(ts.reduce((s,t) => s+t.pnl, 0).toFixed(2));
+        const avgWin = wins.length ? wins.reduce((s,t)=>s+t.pnl,0)/wins.length : 0;
+        const avgLoss = losses.length ? losses.reduce((s,t)=>s+t.pnl,0)/losses.length : 0;
+        let peak = 0, maxDd = 0, running = 0;
+        ts.forEach(t => {
+          running += t.pnl;
+          if (running > peak) peak = running;
+          const dd = peak > 0 ? ((running - peak) / peak * 100) : 0;
+          if (dd < maxDd) maxDd = dd;
+        });
+        const wr = ts.length ? Math.round(wins.length / ts.length * 100) : 0;
+        const wrColor = wr >= 60 ? 'var(--green)' : wr >= 40 ? '#F59E0B' : 'var(--red)';
+        return (
+          <div className="chart-card" style={{padding:'20px'}}>
+            <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:16}}>
+              <div>
+                <div className="chart-title">Récapitulatif Mensuel</div>
+                <div className="chart-sub">Performances du mois sélectionné</div>
+              </div>
+              <div style={{display:'flex', alignItems:'center', gap:6}}>
+                <button onClick={() => canPrev && setRecapSelKey(monthKeys[idx-1])} style={{width:28,height:28,borderRadius:8,border:'1px solid var(--border)',background: canPrev ? 'var(--bg)' : 'transparent',color: canPrev ? 'var(--text)' : 'var(--border)',cursor: canPrev ? 'pointer' : 'default',fontSize:14,display:'flex',alignItems:'center',justifyContent:'center'}}>‹</button>
+                <span style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:13,minWidth:130,textAlign:'center'}}>{label}</span>
+                <button onClick={() => canNext && setRecapSelKey(monthKeys[idx+1])} style={{width:28,height:28,borderRadius:8,border:'1px solid var(--border)',background: canNext ? 'var(--bg)' : 'transparent',color: canNext ? 'var(--text)' : 'var(--border)',cursor: canNext ? 'pointer' : 'default',fontSize:14,display:'flex',alignItems:'center',justifyContent:'center'}}>›</button>
+              </div>
+            </div>
+            <div style={{background:'var(--bg)', borderRadius:12, border:'1px solid var(--border)', overflow:'hidden'}}>
+              <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', padding:'12px 16px', borderBottom:'1px solid var(--border)', background: totalPnl >= 0 ? 'rgba(22,163,74,0.06)' : 'rgba(220,38,38,0.06)'}}>
+                <div style={{fontFamily:"'Syne',sans-serif", fontWeight:700, fontSize:15}}>{label}</div>
+                <div style={{fontFamily:"'Syne',sans-serif", fontWeight:800, fontSize:18, color: totalPnl >= 0 ? 'var(--green)' : 'var(--red)'}}>{totalPnl >= 0 ? '+' : ''}{totalPnl.toFixed(2)} €</div>
+              </div>
+              <div style={{display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:0}}>
+                <div style={{padding:'12px 16px', borderRight:'1px solid var(--border)'}}>
+                  <div style={{fontSize:9, fontWeight:700, letterSpacing:'0.8px', textTransform:'uppercase', color:'var(--muted)', marginBottom:5}}>Trades</div>
+                  <div style={{fontFamily:"'Syne',sans-serif", fontWeight:800, fontSize:20}}>{ts.length}</div>
+                  <div style={{fontSize:12, color:'var(--muted)', marginTop:3}}><span style={{color:'var(--green)', fontWeight:700}}>{wins.length}W</span><span style={{color:'var(--muted)'}}> / </span><span style={{color:'var(--red)', fontWeight:700}}>{losses.length}L</span></div>
+                </div>
+                <div style={{padding:'12px 16px', borderRight:'1px solid var(--border)'}}>
+                  <div style={{fontSize:9, fontWeight:700, letterSpacing:'0.8px', textTransform:'uppercase', color:'var(--muted)', marginBottom:5}}>Win Rate</div>
+                  <div style={{fontFamily:"'Syne',sans-serif", fontWeight:800, fontSize:20, color: wrColor}}>{wr}%</div>
+                  <div style={{marginTop:6, height:4, background:'var(--border)', borderRadius:2, overflow:'hidden'}}><div style={{width:`${wr}%`, height:'100%', background: wrColor, borderRadius:2, transition:'width 0.4s'}} /></div>
+                </div>
+                <div style={{padding:'12px 16px'}}>
+                  <div style={{fontSize:9, fontWeight:700, letterSpacing:'0.8px', textTransform:'uppercase', color:'var(--muted)', marginBottom:5}}>Max DD</div>
+                  <div style={{fontFamily:"'Syne',sans-serif", fontWeight:800, fontSize:20, color: maxDd < -10 ? 'var(--red)' : maxDd < -5 ? '#F59E0B' : 'var(--muted)'}}>{maxDd.toFixed(1)}%</div>
+                </div>
+              </div>
+              <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:0, borderTop:'1px solid var(--border)'}}>
+                <div style={{padding:'10px 16px', borderRight:'1px solid var(--border)'}}>
+                  <div style={{fontSize:9, fontWeight:700, letterSpacing:'0.8px', textTransform:'uppercase', color:'var(--muted)', marginBottom:4}}>Gain moyen</div>
+                  <div style={{fontFamily:"'Syne',sans-serif", fontWeight:700, fontSize:14, color:'var(--green)'}}>{wins.length > 0 ? `+${avgWin.toFixed(2)} €` : '—'}</div>
+                </div>
+                <div style={{padding:'10px 16px'}}>
+                  <div style={{fontSize:9, fontWeight:700, letterSpacing:'0.8px', textTransform:'uppercase', color:'var(--muted)', marginBottom:4}}>Perte moyenne</div>
+                  <div style={{fontFamily:"'Syne',sans-serif", fontWeight:700, fontSize:14, color:'var(--red)'}}>{losses.length > 0 ? `${avgLoss.toFixed(2)} €` : '—'}</div>
+                </div>
+              </div>
+            </div>
+            {monthKeys.length > 1 && (
+              <div style={{display:'flex', justifyContent:'center', gap:5, marginTop:14, flexWrap:'wrap'}}>
+                {monthKeys.map((k) => {
+                  const [y, m] = k.split('-').map(Number);
+                  return <button key={k} onClick={() => setRecapSelKey(k)} title={`${MONTH_SHORT[m-1]} ${y}`} style={{width: k === activeKey ? 18 : 6, height:6, borderRadius:3, border:'none', background: k === activeKey ? 'var(--blue)' : 'var(--border)', cursor:'pointer', padding:0, transition:'all 0.25s'}} />;
+                })}
+              </div>
+            )}
+          </div>
+        );
+      })()}
+
+      {/* Gains par Mois / Année */}
+      <div className="chart-card">
+        <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12}}>
+          <div>
+            <div className="chart-title">Gains par Période</div>
+            <div className="chart-sub">{periodMode === 'month' ? 'P&L cumulé par mois' : 'P&L cumulé par année'}</div>
+          </div>
+          {/* Toggle */}
+          <div style={{display:'flex', background:'var(--bg)', borderRadius:10, padding:3, gap:2}}>
+            {[['month','Mois'],['year','Année']].map(([k,l]) => (
+              <button key={k} onClick={() => setPeriodMode(k)} style={{padding:'5px 14px', borderRadius:8, border:'none', background: periodMode===k ? 'var(--card)' : 'transparent', color: periodMode===k ? 'var(--text)' : 'var(--muted)', fontFamily:"'DM Sans',sans-serif", fontWeight: periodMode===k ? 700 : 500, fontSize:12, cursor:'pointer', boxShadow: periodMode===k ? 'var(--shadow)' : 'none', transition:'all 0.15s'}}>
+                {l}
+              </button>
+            ))}
+          </div>
+        </div>
+        {/* Total for period */}
+        {(() => {
+          const { data } = getPeriodData();
+          const total = data.reduce((s,v) => s+v, 0);
+          return data.length > 0 ? (
+            <div style={{display:'flex', gap:16, marginBottom:12}}>
+              <div style={{background: total >= 0 ? 'var(--green-bg)' : 'var(--red-light)', borderRadius:10, padding:'8px 14px', flex:1, display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+                <span style={{fontSize:12, fontWeight:600, color: total>=0?'var(--green)':'var(--red)'}}>Total</span>
+                <span style={{fontFamily:"'Syne',sans-serif", fontWeight:800, fontSize:15, color: total>=0?'var(--green)':'var(--red)'}}>{total>=0?'+':''}{total.toFixed(2)} €</span>
+              </div>
+              <div style={{background:'var(--bg)', borderRadius:10, padding:'8px 14px', display:'flex', justifyContent:'space-between', alignItems:'center', minWidth:100}}>
+                <span style={{fontSize:12, fontWeight:600, color:'var(--muted)'}}>Périodes</span>
+                <span style={{fontFamily:"'Syne',sans-serif", fontWeight:800, fontSize:15}}>{data.length}</span>
+              </div>
+            </div>
+          ) : null;
+        })()}
+        {getPeriodData().labels.length === 0 ? (
+          <div style={{height:180, display:'flex', alignItems:'center', justifyContent:'center', color:'var(--muted)', fontSize:13}}>Aucun trade enregistré</div>
+        ) : (
+          <div style={{height: 180}}><canvas ref={periodRef}></canvas></div>
+        )}
+      </div>
+
+      <TradeCalendar trades={trades} />
+
+      <div className="stat-grid">
+        <div className="stat-card"><div className="stat-label">Meilleur Trade</div><div className="stat-value" style={{color:'var(--green)'}}>{best ? formatPnl(best.pnl) : '—'}</div><div className="stat-sub">{best?.instrument}</div></div>
+        <div className="stat-card"><div className="stat-label">Pire Trade</div><div className="stat-value" style={{color:'var(--red)'}}>{worst ? formatPnl(worst.pnl) : '—'}</div><div className="stat-sub">{worst?.instrument}</div></div>
+        <div className="stat-card"><div className="stat-label">P&L Long</div><div className="stat-value" style={{color:'var(--green)'}}>{formatPnl(longPnl)}</div><div className="stat-sub">{longs.length} trades</div></div>
+        <div className="stat-card"><div className="stat-label">P&L Short</div><div className="stat-value" style={{color: shortPnl >= 0 ? 'var(--green)' : 'var(--red)'}}>{formatPnl(shortPnl)}</div><div className="stat-sub">{shorts.length} trades</div></div>
+      </div>
+      <div className="chart-card">
+        <div className="chart-title" style={{marginBottom:14}}>Distribution Gains / Pertes</div>
+        <div style={{height:220}}><canvas ref={donutRef}></canvas></div>
+      </div>
+      <div className="chart-card">
+        <div className="chart-title" style={{marginBottom:14}}>P&L par Classe d'Actifs</div>
+        <div style={{height: Math.max(160, Object.keys(assets).length * 44)}}><canvas ref={barRef}></canvas></div>
+      </div>
+      <div className="chart-card">
+        <div className="chart-title" style={{marginBottom:4}}>Performance par Jour</div>
+        <div className="chart-sub" style={{marginBottom:14}}>Win rate et P&L selon le jour de la semaine</div>
+        <table className="strat-table">
+          <thead><tr><th>Jour</th><th>Trades</th><th>Win Rate</th><th>P&L</th></tr></thead>
+          <tbody>
+            {(() => {
+              const JOURS = ['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'];
+              const ORDER = [1,2,3,4,5,6,0]; // Lun → Sam → Dim
+              const days = {};
+              JOURS.forEach((j,i) => { days[i] = { label: j, trades: 0, wins: 0, pnl: 0 }; });
+              trades.forEach(t => {
+                const d = new Date(t.entryDate.split('T')[0]);
+                const dow = d.getDay();
+                days[dow].trades++;
+                if (t.pnl > 0) days[dow].wins++;
+                days[dow].pnl = parseFloat((days[dow].pnl + t.pnl).toFixed(2));
+              });
+              return ORDER.filter(i => days[i].trades > 0).map(i => {
+                const d = days[i];
+                const wr = Math.round(d.wins / d.trades * 100);
+                const wrColor = wr >= 70 ? 'var(--green)' : wr >= 50 ? '#F59E0B' : 'var(--red)';
+                return (
+                  <tr key={i}>
+                    <td style={{fontWeight:600}}>{d.label}</td>
+                    <td style={{color:'var(--muted)'}}>{d.trades}</td>
+                    <td>
+                      <div style={{display:'flex', alignItems:'center', gap:6}}>
+                        <div style={{flex:1, height:5, background:'var(--bg)', borderRadius:3, overflow:'hidden'}}>
+                          <div style={{width:`${wr}%`, height:'100%', background: wrColor, borderRadius:3, transition:'width 0.4s'}} />
+                        </div>
+                        <span style={{color: wrColor, fontWeight:700, fontSize:13, minWidth:36}}>{wr}%</span>
+                      </div>
+                    </td>
+                    <td className={d.pnl >= 0 ? 'trade-pnl pos' : 'trade-pnl neg'}>{formatPnl(d.pnl)}</td>
+                  </tr>
+                );
+              });
+            })()}
+          </tbody>
+        </table>
+        {trades.length === 0 && <div style={{textAlign:'center',color:'var(--muted)',fontSize:13,padding:'12px 0'}}>Aucun trade enregistré</div>}
+      </div>
+      <div className="chart-card">
+        <div className="chart-title" style={{marginBottom:14}}>Performance par Stratégie</div>
+        <table className="strat-table">
+          <thead><tr><th>Stratégie</th><th>Trades</th><th>Win Rate</th><th>P&L</th></tr></thead>
+          <tbody>
+            {stratList.map(([name, s]) => (
+              <tr key={name}>
+                <td style={{fontWeight:600}}>{name}</td>
+                <td style={{color:'var(--muted)'}}>{s.trades}</td>
+                <td style={{color:'var(--muted)'}}>{s.trades ? Math.round(s.wins/s.trades*100) : 0}%</td>
+                <td className={s.pnl >= 0 ? 'trade-pnl pos' : 'trade-pnl neg'}>{formatPnl(s.pnl)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function Parametres({ accounts, setAccounts, activeAccountId, setActiveAccountId, theme, setTheme, savedStrategies, setSavedStrategies }) {
+  const [editingId, setEditingId] = useState(null);
+  const [editForm, setEditForm] = useState({});
+  const [newForm, setNewForm] = useState({ name: '', initialCapital: '', currency: 'EUR' });
+  const [showNew, setShowNew] = useState(false);
+  const [toast, setToast] = useState('');
+  const [confirmDelete, setConfirmDelete] = useState(null);
+  const [newStrat, setNewStrat] = useState('');
+
+  const showToast = msg => { setToast(msg); setTimeout(() => setToast(''), 2000); };
+
+  const startEdit = acc => { setEditingId(acc.id); setEditForm({ name: acc.name, initialCapital: acc.initialCapital, currency: acc.currency }); };
+
+  const saveEdit = () => {
+    setAccounts(prev => prev.map(a => a.id === editingId ? { ...a, name: editForm.name, initialCapital: parseFloat(editForm.initialCapital)||0, currency: editForm.currency } : a));
+    setEditingId(null);
+    showToast('Compte mis à jour !');
+  };
+
+  const createAccount = () => {
+    if (!newForm.name.trim()) { showToast('Entrez un nom de compte'); return; }
+    const newAcc = { id: 'acc_' + Date.now(), name: newForm.name.trim(), initialCapital: parseFloat(newForm.initialCapital)||0, currency: newForm.currency || 'EUR', trades: [] };
+    setAccounts(prev => [...prev, newAcc]);
+    setNewForm({ name: '', initialCapital: '', currency: 'EUR' });
+    setShowNew(false);
+    showToast('Compte créé !');
+  };
+
+  const deleteAccount = id => {
+    if (accounts.length === 1) { showToast('Impossible de supprimer le dernier compte'); return; }
+    setAccounts(prev => prev.filter(a => a.id !== id));
+    if (activeAccountId === id) setActiveAccountId(accounts.find(a => a.id !== id)?.id);
+    setConfirmDelete(null);
+    showToast('Compte supprimé');
+  };
+
+  const COLORS = ['#2563EB','#16A34A','#EA580C','#7C3AED','#0891B2','#BE185D'];
+
+  return (
+    <div className="content">
+      <div style={{paddingTop:4}}><div className="page-sub">Gérez vos comptes de trading</div></div>
+
+      {/* Liste des comptes */}
+      <div className="settings-card">
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+          <div className="settings-title">Mes Comptes</div>
+          <button onClick={() => { setShowNew(true); setEditingId(null); }} style={{background:'var(--blue)',color:'white',border:'none',borderRadius:8,padding:'6px 12px',fontSize:13,fontWeight:600,cursor:'pointer'}}>+ Nouveau</button>
+        </div>
+
+        {accounts.map((acc, idx) => {
+          const totalPnl = acc.trades.reduce((s,t) => s+t.pnl, 0);
+          const capital = acc.initialCapital + totalPnl;
+          const pct = acc.initialCapital ? ((totalPnl/acc.initialCapital)*100).toFixed(1) : 0;
+          const color = COLORS[idx % COLORS.length];
+          const isActive = acc.id === activeAccountId;
+          const isEditing = editingId === acc.id;
+
+          return (
+            <div key={acc.id} style={{border: isActive ? `2px solid ${color}` : '1.5px solid var(--border)', borderRadius:14, padding:16, background: isActive ? `${color}08` : 'var(--bg)', transition:'all 0.2s'}}>
+              {isEditing ? (
+                <div style={{display:'flex',flexDirection:'column',gap:10}}>
+                  <input className="form-input" placeholder="Nom du compte" value={editForm.name} onChange={e => setEditForm(p=>({...p,name:e.target.value}))} />
+                  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+                    <input className="form-input" type="number" placeholder="Capital initial" value={editForm.initialCapital} onChange={e => setEditForm(p=>({...p,initialCapital:e.target.value}))} />
+                    <input className="form-input" placeholder="Devise" value={editForm.currency} onChange={e => setEditForm(p=>({...p,currency:e.target.value}))} />
+                  </div>
+                  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+                    <button className="btn-cancel" style={{padding:'8px'}} onClick={() => setEditingId(null)}>Annuler</button>
+                    <button className="btn-save" style={{padding:'8px'}} onClick={saveEdit}>💾 Sauver</button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:10}}>
+                    <div style={{width:36,height:36,borderRadius:10,background:color,display:'flex',alignItems:'center',justifyContent:'center',color:'white',fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:14,flexShrink:0}}>
+                      {acc.name.charAt(0).toUpperCase()}
+                    </div>
+                    <div style={{flex:1}}>
+                      <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:15,display:'flex',alignItems:'center',gap:6}}>
+                        {acc.name}
+                        {isActive && <span style={{background:color,color:'white',borderRadius:20,padding:'1px 8px',fontSize:10,fontWeight:700}}>ACTIF</span>}
+                      </div>
+                      <div style={{fontSize:12,color:'var(--muted)'}}>{acc.trades.length} trades · {acc.currency}</div>
+                    </div>
+                  </div>
+                  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:10}}>
+                    <div style={{background:'var(--card)',borderRadius:10,padding:'8px 12px'}}>
+                      <div style={{fontSize:10,color:'var(--muted)',fontWeight:700,letterSpacing:'0.8px',textTransform:'uppercase',marginBottom:2}}>Capital</div>
+                      <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:15}}>{capital.toFixed(0)} {acc.currency}</div>
+                    </div>
+                    <div style={{background:'var(--card)',borderRadius:10,padding:'8px 12px'}}>
+                      <div style={{fontSize:10,color:'var(--muted)',fontWeight:700,letterSpacing:'0.8px',textTransform:'uppercase',marginBottom:2}}>P&L</div>
+                      <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:15,color:totalPnl>=0?'var(--green)':'var(--red)'}}>{totalPnl>=0?'+':''}{totalPnl.toFixed(0)} {acc.currency} <span style={{fontSize:12,opacity:0.7}}>({pct}%)</span></div>
+                    </div>
+                  </div>
+                  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:6}}>
+                    <button onClick={() => setActiveAccountId(acc.id)} style={{background: isActive ? color : 'var(--card)', color: isActive ? 'white' : 'var(--text)', border: isActive ? 'none' : '1px solid var(--border)', borderRadius:8, padding:'7px 0', fontSize:12, fontWeight:600, cursor:'pointer', transition:'all 0.15s'}}>
+                      {isActive ? '✓ Actif' : 'Sélectionner'}
+                    </button>
+                    <button onClick={() => startEdit(acc)} style={{background:'var(--card)',color:'var(--muted)',border:'1px solid var(--border)',borderRadius:8,padding:'7px 0',fontSize:12,fontWeight:600,cursor:'pointer'}}>✏️ Modifier</button>
+                    <button onClick={() => setConfirmDelete(acc.id)} style={{background:'var(--card)',color:'var(--red)',border:'1px solid var(--red-light)',borderRadius:8,padding:'7px 0',fontSize:12,fontWeight:600,cursor:'pointer'}}>🗑 Suppr.</button>
+                  </div>
+                </>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Nouveau compte */}
+      {showNew && (
+        <div className="settings-card">
+          <div className="settings-title">Nouveau Compte</div>
+          <div className="form-group"><div className="form-label">Nom du compte</div><input className="form-input" placeholder="ex: Compte Prop Firm, Compte Réel..." value={newForm.name} onChange={e => setNewForm(p=>({...p,name:e.target.value}))} /></div>
+          <div className="form-group"><div className="form-label">Capital initial</div><input className="form-input" type="number" placeholder="ex: 10000" value={newForm.initialCapital} onChange={e => setNewForm(p=>({...p,initialCapital:e.target.value}))} /></div>
+          <div className="form-group"><div className="form-label">Devise</div>
+            <select className="form-select" value={newForm.currency} onChange={e => setNewForm(p=>({...p,currency:e.target.value}))}>
+              {['EUR','USD','GBP','CHF','JPY','CAD'].map(c => <option key={c}>{c}</option>)}
+            </select>
+          </div>
+          <div className="btn-row">
+            <button className="btn-cancel" onClick={() => setShowNew(false)}>Annuler</button>
+            <button className="btn-save" onClick={createAccount}>✅ Créer</button>
+          </div>
+        </div>
+      )}
+
+      {/* Confirm delete */}
+      {confirmDelete && (
+        <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.4)',zIndex:500,display:'flex',alignItems:'center',justifyContent:'center',padding:24}}>
+          <div style={{background:'var(--card)',borderRadius:20,padding:24,width:'100%',maxWidth:340}}>
+            <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:18,marginBottom:8}}>Supprimer le compte ?</div>
+            <div style={{fontSize:14,color:'var(--muted)',marginBottom:20}}>Tous les trades associés seront définitivement supprimés.</div>
+            <div className="btn-row">
+              <button className="btn-cancel" onClick={() => setConfirmDelete(null)}>Annuler</button>
+              <button style={{background:'var(--red)',color:'white',border:'none',borderRadius:12,padding:'13px 20px',fontFamily:"'DM Sans',sans-serif",fontSize:15,fontWeight:600,cursor:'pointer',flex:1}} onClick={() => deleteAccount(confirmDelete)}>Supprimer</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="settings-card">
+        <div className="settings-title" style={{marginBottom:4}}>Mes Stratégies</div>
+        <div style={{fontSize:12, color:'var(--muted)', marginBottom:12, lineHeight:1.5}}>
+          Gérez vos stratégies sauvegardées. Elles apparaîtront en raccourcis lors de l'ajout d'un trade.
+        </div>
+        {/* Strategy pills */}
+        <div style={{display:'flex', flexWrap:'wrap', gap:6, marginBottom:12}}>
+          {(savedStrategies || []).map((s, i) => (
+            <div key={i} style={{display:'flex', alignItems:'center', gap:4, padding:'4px 10px', borderRadius:20, background:'var(--bg)', border:'1.5px solid var(--border)', fontSize:12, fontWeight:600, color:'var(--text)'}}>
+              {s}
+              <button onClick={() => setSavedStrategies(prev => prev.filter((_, j) => j !== i))}
+                style={{background:'none', border:'none', color:'var(--muted)', cursor:'pointer', fontSize:13, lineHeight:1, padding:'0 0 0 2px', display:'flex', alignItems:'center'}}>
+                ✕
+              </button>
+            </div>
+          ))}
+          {(!savedStrategies || savedStrategies.length === 0) && (
+            <div style={{fontSize:13, color:'var(--muted)'}}>Aucune stratégie sauvegardée</div>
+          )}
+        </div>
+        {/* Add new strategy */}
+        <div style={{display:'flex', gap:8}}>
+          <input className="form-input" style={{flex:1}} placeholder="Nouvelle stratégie..." value={newStrat}
+            onChange={e => setNewStrat(e.target.value)}
+            onKeyDown={e => {
+              if (e.key === 'Enter' && newStrat.trim() && !(savedStrategies||[]).includes(newStrat.trim())) {
+                setSavedStrategies(prev => [...prev, newStrat.trim()]);
+                setNewStrat('');
+              }
+            }} />
+          <button onClick={() => {
+            if (newStrat.trim() && !(savedStrategies||[]).includes(newStrat.trim())) {
+              setSavedStrategies(prev => [...prev, newStrat.trim()]);
+              setNewStrat('');
+            }
+          }} style={{flexShrink:0, padding:'0 16px', height:42, borderRadius:10, border:'none', background:'var(--blue)', color:'white', fontFamily:"'DM Sans',sans-serif", fontWeight:600, fontSize:13, cursor:'pointer'}}>
+            Ajouter
+          </button>
+        </div>
+      </div>
+
+      <div className="settings-card">
+        <div style={{display:'flex', alignItems:'center', justifyContent:'space-between'}}>
+          <div>
+            <div className="settings-title" style={{marginBottom:2}}>Apparence</div>
+            <div style={{fontSize:13, color:'var(--muted)'}}>{theme === 'dark' ? 'Mode sombre activé' : 'Mode clair activé'}</div>
+          </div>
+          <button onClick={() => setTheme(t => t === 'light' ? 'dark' : 'light')} style={{position:'relative', width:56, height:30, borderRadius:30, border:'none', background: theme === 'dark' ? 'var(--blue)' : 'var(--border)', cursor:'pointer', transition:'background 0.3s', flexShrink:0}}>
+            <div style={{position:'absolute', top:3, left: theme === 'dark' ? 29 : 3, width:24, height:24, borderRadius:'50%', background:'white', transition:'left 0.3s', boxShadow:'0 1px 4px rgba(0,0,0,0.2)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:13}}>
+              {theme === 'dark' ? '🌙' : '☀️'}
+            </div>
+          </button>
+        </div>
+      </div>
+
+      <div className="settings-card">
+        <div className="settings-title" style={{marginBottom:4}}>Sauvegarde des données</div>
+        <div style={{fontSize:12, color:'var(--muted)', marginBottom:14, lineHeight:1.5}}>
+          Exportez vos données en JSON pour une sauvegarde complète, ou en Excel (.xlsx) pour les analyser dans Excel / Google Sheets.
+        </div>
+        <button onClick={() => {
+          const data = { accounts, activeAccountId, exportedAt: new Date().toISOString(), version: '1.0' };
+          const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `tradejournal_${new Date().toISOString().split('T')[0]}.json`;
+          a.click();
+          URL.revokeObjectURL(url);
+          showToast('Export JSON téléchargé !');
+        }} style={{display:'flex', alignItems:'center', justifyContent:'center', gap:8, background:'var(--blue)', color:'white', border:'none', borderRadius:12, padding:'12px', fontFamily:"'DM Sans',sans-serif", fontSize:14, fontWeight:600, cursor:'pointer', width:'100%', marginBottom:8, boxShadow:'0 4px 14px rgba(37,99,235,0.25)'}}>
+          ⬇ Exporter mes données (.json)
+        </button>
+        <button onClick={() => {
+          const activeAcc = accounts.find(a => a.id === activeAccountId) || accounts[0];
+          const trades = activeAcc.trades;
+          if (!trades.length) { showToast('Aucun trade à exporter'); return; }
+
+          const XLSX = window.XLSX;
+          if (!XLSX) { showToast('Erreur : librairie Excel non chargée'); return; }
+          const fmtDate = d => d ? d.replace('T', ' ').slice(0, 16) : '';
+          const fmtNum = v => v !== '' && v !== null && v !== undefined ? parseFloat(parseFloat(v).toFixed(2)) : '';
+
+          const headers = ['Compte','Instrument',"Classe d'actifs",'Direction','Quantité',"Prix d'entrée",'Prix de sortie',"Date d'entrée",'Date de sortie','P&L (€)','Frais (€)','Stratégie','Évaluation (/5)','Notes techniques','Psychologie'];
+          const dataRows = trades.sort((a,b) => a.entryDate.localeCompare(b.entryDate)).map(t => [activeAcc.name,t.instrument,t.asset,t.direction,fmtNum(t.qty),fmtNum(t.entry),t.exit?fmtNum(t.exit):'',fmtDate(t.entryDate),fmtDate(t.exitDate),fmtNum(t.pnl),fmtNum(t.fees||0),t.strategy||'',t.rating||0,t.notes||'',t.psychology||'']);
+
+          const wb = XLSX.utils.book_new();
+          const wsData = [headers, ...dataRows];
+          const ws = XLSX.utils.aoa_to_sheet(wsData);
+
+          // Auto column widths
+          ws['!cols'] = headers.map((h, ci) => {
+            const maxLen = wsData.reduce((max, row) => {
+              const len = ci >= 13 ? Math.min(String(row[ci]??'').length, 45) : String(row[ci]??'').length;
+              return Math.max(max, len);
+            }, h.length);
+            return { wch: Math.max(maxLen + 2, 8) };
+          });
+
+          // Wrap text on notes columns + all rows
+          const range = XLSX.utils.decode_range(ws['!ref']);
+          for (let R = 0; R <= range.e.r; R++) {
+            for (let C = 0; C <= range.e.c; C++) {
+              const addr = XLSX.utils.encode_cell({ r: R, c: C });
+              if (!ws[addr]) ws[addr] = { v: '', t: 's' };
+              const isHeader = R === 0;
+              const isNotes = C >= 13;
+              const isPnl = C === 9;
+              ws[addr].s = {
+                font: isHeader
+                  ? { bold: true, color: { rgb: 'FFFFFF' }, name: 'Arial', sz: 10 }
+                  : isPnl
+                    ? { bold: true, color: { rgb: (ws[addr].v >= 0 ? '16A34A' : 'DC2626') }, name: 'Arial', sz: 10 }
+                    : { name: 'Arial', sz: 10 },
+                fill: isHeader ? { patternType: 'solid', fgColor: { rgb: '1A1D23' } } : {},
+                alignment: {
+                  wrapText: isNotes || isHeader ? true : false,
+                  vertical: 'top',
+                  horizontal: isHeader ? 'center' : 'left',
+                },
+                border: {
+                  bottom: { style: 'thin', color: { rgb: 'E8ECF2' } },
+                  right: { style: 'thin', color: { rgb: 'E8ECF2' } },
+                },
+              };
+            }
+          }
+
+          // Freeze header row
+          ws['!freeze'] = { xSplit: 0, ySplit: 1, topLeftCell: 'A2', activePane: 'bottomLeft' };
+
+          XLSX.utils.book_append_sheet(wb, ws, 'Trades');
+
+          // Summary sheet
+          const tw = trades, w = tw.filter(t=>t.pnl>0), l = tw.filter(t=>t.pnl<0), tot = tw.reduce((s,t)=>s+t.pnl,0);
+          const summaryData = [['Récapitulatif',''],['Compte',activeAcc.name],['Capital initial (€)',activeAcc.initialCapital],['Nombre de trades',tw.length],['Trades gagnants',w.length],['Trades perdants',l.length],['Win Rate (%)',tw.length?parseFloat((w.length/tw.length*100).toFixed(1)):0],['P&L Total (€)',parseFloat(tot.toFixed(2))],['Gain moyen (€)',w.length?parseFloat((w.reduce((s,t)=>s+t.pnl,0)/w.length).toFixed(2)):0],['Perte moyenne (€)',l.length?parseFloat((l.reduce((s,t)=>s+t.pnl,0)/l.length).toFixed(2)):0],['Meilleur trade (€)',tw.length?parseFloat(Math.max(...tw.map(t=>t.pnl)).toFixed(2)):0],['Pire trade (€)',tw.length?parseFloat(Math.min(...tw.map(t=>t.pnl)).toFixed(2)):0],['Date export',new Date().toLocaleDateString('fr-FR')]];
+          const wsSummary = XLSX.utils.aoa_to_sheet(summaryData);
+          wsSummary['!cols'] = [{ wch: 28 }, { wch: 20 }];
+          XLSX.utils.book_append_sheet(wb, wsSummary, 'Résumé');
+
+          XLSX.writeFile(wb, `${activeAcc.name.replace(/\s+/g,'_')}_trades_${new Date().toISOString().split('T')[0]}.xlsx`);
+          showToast('Export Excel téléchargé !');
+        }} style={{display:'flex', alignItems:'center', justifyContent:'center', gap:8, background:'var(--green)', color:'white', border:'none', borderRadius:12, padding:'12px', fontFamily:"'DM Sans',sans-serif", fontSize:14, fontWeight:600, cursor:'pointer', width:'100%', marginBottom:8, boxShadow:'0 4px 14px rgba(22,163,74,0.25)'}}>
+          ⬇ Exporter les trades (.xlsx)
+        </button>
+        <label style={{display:'flex', alignItems:'center', justifyContent:'center', gap:8, background:'var(--bg)', color:'var(--text)', border:'1.5px solid var(--border)', borderRadius:12, padding:'12px', fontFamily:"'DM Sans',sans-serif", fontSize:14, fontWeight:600, cursor:'pointer', width:'100%'}}>
+          ⬆ Importer une sauvegarde
+          <input type="file" accept=".json" style={{display:'none'}} onChange={e => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = ev => {
+              try {
+                const data = JSON.parse(ev.target.result);
+                if (!data.accounts || !Array.isArray(data.accounts)) { showToast('Fichier invalide'); return; }
+                setAccounts(data.accounts);
+                if (data.activeAccountId) setActiveAccountId(data.activeAccountId);
+                showToast('Données importées !');
+              } catch { showToast('Erreur lors de l\'import'); }
+            };
+            reader.readAsText(file);
+            e.target.value = '';
+          }} />
+        </label>
+      </div>
+
+      <div className="settings-card">
+        <div className="settings-title">Session</div>
+        <button className="btn-logout" onClick={async () => { await supabase.auth.signOut(); }}>↪ Se déconnecter</button>
+      </div>
+      {toast && <div className="toast">{toast}</div>}
+    </div>
+  );
+}
+
+// --- SUPABASE ---
+const SUPABASE_URL = 'https://qnzjtjabhugnuannsdcw.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_xgke_frbQeTzbaxj9cV4Jg_YktV2YrH';
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// --- AUTH SCREENS ---
+function AuthScreen({ onAuth }) {
+  const [mode, setMode] = useState('login'); // 'login' | 'register' | 'reset'
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [showPwd, setShowPwd] = useState(false);
+
+  const reset = () => { setError(''); setSuccess(''); };
+
+  const handleLogin = async () => {
+    if (!email || !password) { setError('Remplissez tous les champs'); return; }
+    setLoading(true); reset();
+    const { data, error: err } = await supabase.auth.signInWithPassword({ email, password });
+    setLoading(false);
+    if (err) { setError(err.message === 'Invalid login credentials' ? 'Email ou mot de passe incorrect' : err.message); return; }
+    onAuth(data.user);
+  };
+
+  const handleRegister = async () => {
+    if (!email || !password || !confirmPassword) { setError('Remplissez tous les champs'); return; }
+    if (password !== confirmPassword) { setError('Les mots de passe ne correspondent pas'); return; }
+    if (password.length < 6) { setError('Le mot de passe doit faire au moins 6 caractères'); return; }
+    setLoading(true); reset();
+    const { data, error: err } = await supabase.auth.signUp({ email, password });
+    setLoading(false);
+    if (err) { setError(err.message); return; }
+    if (data?.user?.identities?.length === 0) { setError('Un compte existe déjà avec cet email'); return; }
+    setSuccess('Compte créé ! Vérifiez votre email pour confirmer puis connectez-vous.');
+    setMode('login');
+  };
+
+  const handleReset = async () => {
+    if (!email) { setError('Entrez votre adresse email'); return; }
+    setLoading(true); reset();
+    const { error: err } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: 'https://panpanaz.github.io/tradejournal/tradejournal.html'
+    });
+    setLoading(false);
+    if (err) { setError(err.message); return; }
+    setSuccess('Email de réinitialisation envoyé ! Vérifiez votre boîte mail.');
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      if (mode === 'login') handleLogin();
+      else if (mode === 'register') handleRegister();
+      else handleReset();
+    }
+  };
+
+  return (
+    <div style={{
+      minHeight:'100vh', background:'linear-gradient(135deg, #0F1117 0%, #1A1D27 50%, #0F1117 100%)',
+      display:'flex', alignItems:'center', justifyContent:'center', padding:'20px',
+      fontFamily:"'DM Sans', sans-serif"
+    }}>
+      <div style={{width:'100%', maxWidth:400}}>
+
+        {/* Logo & Brand */}
+        <div style={{textAlign:'center', marginBottom:40}}>
+          <div style={{width:64, height:64, background:'var(--blue)', borderRadius:18, display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 16px', boxShadow:'0 8px 32px rgba(37,99,235,0.4)'}}>
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+            </svg>
+          </div>
+          <div style={{fontFamily:"'Syne',sans-serif", fontWeight:800, fontSize:26, color:'white', letterSpacing:'-0.5px'}}>
+            TradeJournal
+          </div>
+          <div style={{fontSize:12, fontWeight:700, letterSpacing:'2px', color:'#2563EB', textTransform:'uppercase', marginTop:2}}>PRO</div>
+        </div>
+
+        {/* Card */}
+        <div style={{background:'#1A1D27', borderRadius:20, padding:'32px 28px', border:'1px solid #2A2D3A', boxShadow:'0 24px 64px rgba(0,0,0,0.4)'}}>
+
+          {/* Tab switcher */}
+          {mode !== 'reset' && (
+            <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', background:'#13161F', borderRadius:12, padding:4, marginBottom:28, gap:4}}>
+              {[['login','Connexion'],['register','Inscription']].map(([m, l]) => (
+                <button key={m} onClick={() => { setMode(m); reset(); setPassword(''); setConfirmPassword(''); }}
+                  style={{padding:'9px', borderRadius:9, border:'none', cursor:'pointer', fontFamily:"'Syne',sans-serif", fontWeight:700, fontSize:13, transition:'all 0.2s',
+                    background: mode===m ? '#2563EB' : 'transparent',
+                    color: mode===m ? 'white' : '#6B7280'}}>
+                  {l}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {mode === 'reset' && (
+            <div style={{marginBottom:24}}>
+              <button onClick={() => { setMode('login'); reset(); }} style={{background:'none', border:'none', color:'#6B7280', cursor:'pointer', fontSize:13, display:'flex', alignItems:'center', gap:6, padding:0}}>
+                ← Retour à la connexion
+              </button>
+              <div style={{fontFamily:"'Syne',sans-serif", fontWeight:800, fontSize:20, color:'white', marginTop:12}}>Mot de passe oublié</div>
+              <div style={{fontSize:13, color:'#6B7280', marginTop:4}}>On vous envoie un lien de réinitialisation</div>
+            </div>
+          )}
+
+          {/* Fields */}
+          <div style={{display:'flex', flexDirection:'column', gap:14}}>
+            <div>
+              <label style={{fontSize:12, fontWeight:600, color:'#9CA3AF', display:'block', marginBottom:6}}>Adresse email</label>
+              <input type="email" value={email} onChange={e => setEmail(e.target.value)} onKeyDown={handleKeyDown}
+                placeholder="vous@exemple.com" autoComplete="email"
+                style={{width:'100%', padding:'12px 14px', background:'#13161F', border:'1.5px solid #2A2D3A', borderRadius:10,
+                  color:'white', fontSize:14, outline:'none', boxSizing:'border-box',
+                  fontFamily:"'DM Sans',sans-serif", transition:'border-color 0.15s'}}
+                onFocus={e => e.target.style.borderColor='#2563EB'}
+                onBlur={e => e.target.style.borderColor='#2A2D3A'} />
+            </div>
+
+            {mode !== 'reset' && (
+              <div>
+                <label style={{fontSize:12, fontWeight:600, color:'#9CA3AF', display:'block', marginBottom:6}}>Mot de passe</label>
+                <div style={{position:'relative'}}>
+                  <input type={showPwd ? 'text' : 'password'} value={password} onChange={e => setPassword(e.target.value)} onKeyDown={handleKeyDown}
+                    placeholder="••••••••" autoComplete={mode==='login' ? 'current-password' : 'new-password'}
+                    style={{width:'100%', padding:'12px 44px 12px 14px', background:'#13161F', border:'1.5px solid #2A2D3A', borderRadius:10,
+                      color:'white', fontSize:14, outline:'none', boxSizing:'border-box',
+                      fontFamily:"'DM Sans',sans-serif", transition:'border-color 0.15s'}}
+                    onFocus={e => e.target.style.borderColor='#2563EB'}
+                    onBlur={e => e.target.style.borderColor='#2A2D3A'} />
+                  <button onClick={() => setShowPwd(v => !v)} style={{position:'absolute', right:12, top:'50%', transform:'translateY(-50%)', background:'none', border:'none', color:'#6B7280', cursor:'pointer', fontSize:16, padding:0}}>
+                    {showPwd ? '🙈' : '👁'}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {mode === 'register' && (
+              <div>
+                <label style={{fontSize:12, fontWeight:600, color:'#9CA3AF', display:'block', marginBottom:6}}>Confirmer le mot de passe</label>
+                <input type={showPwd ? 'text' : 'password'} value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} onKeyDown={handleKeyDown}
+                  placeholder="••••••••" autoComplete="new-password"
+                  style={{width:'100%', padding:'12px 14px', background:'#13161F', border:'1.5px solid #2A2D3A', borderRadius:10,
+                    color:'white', fontSize:14, outline:'none', boxSizing:'border-box',
+                    fontFamily:"'DM Sans',sans-serif", transition:'border-color 0.15s'}}
+                  onFocus={e => e.target.style.borderColor='#2563EB'}
+                  onBlur={e => e.target.style.borderColor='#2A2D3A'} />
+              </div>
+            )}
+          </div>
+
+          {/* Error / Success */}
+          {error && (
+            <div style={{margin:'16px 0 0', padding:'10px 14px', background:'rgba(220,38,38,0.12)', border:'1px solid rgba(220,38,38,0.3)', borderRadius:10, fontSize:13, color:'#FCA5A5'}}>
+              ⚠️ {error}
+            </div>
+          )}
+          {success && (
+            <div style={{margin:'16px 0 0', padding:'10px 14px', background:'rgba(22,163,74,0.12)', border:'1px solid rgba(22,163,74,0.3)', borderRadius:10, fontSize:13, color:'#86EFAC'}}>
+              ✅ {success}
+            </div>
+          )}
+
+          {/* CTA Button */}
+          <button onClick={mode==='login' ? handleLogin : mode==='register' ? handleRegister : handleReset}
+            disabled={loading}
+            style={{width:'100%', padding:'13px', marginTop:20, background: loading ? '#1E3A5F' : '#2563EB', color:'white', border:'none', borderRadius:12,
+              fontFamily:"'Syne',sans-serif", fontWeight:700, fontSize:15, cursor: loading ? 'not-allowed' : 'pointer',
+              boxShadow: loading ? 'none' : '0 4px 20px rgba(37,99,235,0.35)', transition:'all 0.2s',
+              display:'flex', alignItems:'center', justifyContent:'center', gap:8}}>
+            {loading ? (
+              <><span style={{display:'inline-block', animation:'spin 1s linear infinite'}}>⟳</span> Chargement...</>
+            ) : mode === 'login' ? 'Se connecter →' : mode === 'register' ? 'Créer mon compte →' : 'Envoyer le lien →'}
+          </button>
+
+          {/* Forgot password link */}
+          {mode === 'login' && (
+            <div style={{textAlign:'center', marginTop:16}}>
+              <button onClick={() => { setMode('reset'); reset(); }}
+                style={{background:'none', border:'none', color:'#6B7280', cursor:'pointer', fontSize:13, textDecoration:'underline'}}>
+                Mot de passe oublié ?
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div style={{textAlign:'center', marginTop:24, fontSize:12, color:'#4B5563'}}>
+          Vos données sont chiffrées et sécurisées
+        </div>
+      </div>
+
+      <style>{`
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        input::placeholder { color: #4B5563 !important; }
+      `}</style>
+    </div>
+  );
+}
+
+function AuthGate({ children }) {
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    // Check existing session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+      setLoading(false);
+    });
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  if (loading) {
+    return (
+      <div style={{minHeight:'100vh', background:'#0F1117', display:'flex', alignItems:'center', justifyContent:'center', flexDirection:'column', gap:16}}>
+        <div style={{width:48, height:48, background:'#2563EB', borderRadius:14, display:'flex', alignItems:'center', justifyContent:'center'}}>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+          </svg>
+        </div>
+        <div style={{color:'#6B7280', fontSize:14, fontFamily:"'DM Sans',sans-serif"}}>Chargement...</div>
+      </div>
+    );
+  }
+
+  if (!user) return <AuthScreen onAuth={setUser} />;
+  return children;
+}
+
+function App() {
+  const [page, setPage] = useState('dashboard');
+
+  const [accounts, setAccounts] = useState(() => {
+    try {
+      const saved = localStorage.getItem('tj_accounts');
+      return saved ? JSON.parse(saved) : INITIAL_ACCOUNTS;
+    } catch { return INITIAL_ACCOUNTS; }
+  });
+
+  const [activeAccountId, setActiveAccountId] = useState(() => {
+    return localStorage.getItem('tj_activeAccountId') || 'acc1';
+  });
+
+  const [theme, setTheme] = useState(() => {
+    return localStorage.getItem('tj_theme') || 'light';
+  });
+
+  const [savedStrategies, setSavedStrategies] = useState(() => {
+    try {
+      const saved = localStorage.getItem('tj_strategies');
+      return saved ? JSON.parse(saved) : ['Breakout', 'Scalping', 'Swing', 'ICT', 'Mean Reversion'];
+    } catch { return ['Breakout', 'Scalping', 'Swing', 'ICT', 'Mean Reversion']; }
+  });
+
+  const [editTrade, setEditTrade] = useState(null);
+
+  // Persist accounts whenever they change
+  useEffect(() => {
+    try { localStorage.setItem('tj_accounts', JSON.stringify(accounts)); } catch {}
+  }, [accounts]);
+
+  // Persist active account
+  useEffect(() => {
+    localStorage.setItem('tj_activeAccountId', activeAccountId);
+  }, [activeAccountId]);
+
+  // Persist theme
+  useEffect(() => {
+    localStorage.setItem('tj_theme', theme);
+  }, [theme]);
+
+  // Persist strategies
+  useEffect(() => {
+    try { localStorage.setItem('tj_strategies', JSON.stringify(savedStrategies)); } catch {}
+  }, [savedStrategies]);
+
+  useEffect(() => {
+    document.body.classList.toggle('dark', theme === 'dark');
+  }, [theme]);
+
+  const activeAccount = accounts.find(a => a.id === activeAccountId) || accounts[0];
+  const trades = activeAccount.trades;
+
+  const setTrades = (updater) => {
+    setAccounts(prev => prev.map(a => a.id === activeAccountId ? { ...a, trades: typeof updater === 'function' ? updater(a.trades) : updater } : a));
+  };
+
+  const settings = { accountName: activeAccount.name, initialCapital: activeAccount.initialCapital, currency: activeAccount.currency };
+
+  const navItems = [
+    { id: 'dashboard', label: 'Dashboard', svg: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg> },
+    { id: 'trades', label: 'Mes Trades', svg: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg> },
+    { id: 'nouveau', label: 'Nouveau', svg: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg> },
+    { id: 'analyses', label: 'Analyses', svg: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg> },
+    { id: 'parametres', label: 'Paramètres', svg: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg> },
+  ];
+
+  const pageTitles = { dashboard: 'Dashboard', trades: 'Mes Trades', nouveau: editTrade ? 'Modifier Trade' : 'Nouveau Trade', analyses: 'Analyses', parametres: 'Paramètres' };
+
+  const [isDesktop, setIsDesktop] = useState(() => window.innerWidth >= 768);
+
+  useEffect(() => {
+    const handler = () => setIsDesktop(window.innerWidth >= 768);
+    window.addEventListener('resize', handler);
+    return () => window.removeEventListener('resize', handler);
+  }, []);
+
+  const pageContent = (
+    <>
+      {page === 'dashboard' && <Dashboard trades={trades} settings={settings} setPage={setPage} />}
+      {page === 'trades' && <MesTrades trades={trades} setTrades={setTrades} setPage={setPage} setEditTrade={setEditTrade} />}
+      {page === 'nouveau' && <NouveauTrade trades={trades} setTrades={setTrades} setPage={setPage} editTrade={editTrade} savedStrategies={savedStrategies} setSavedStrategies={setSavedStrategies} />}
+      {page === 'analyses' && <Analyses trades={trades} theme={theme} />}
+      {page === 'parametres' && <Parametres accounts={accounts} setAccounts={setAccounts} activeAccountId={activeAccountId} setActiveAccountId={setActiveAccountId} theme={theme} setTheme={setTheme} savedStrategies={savedStrategies} setSavedStrategies={setSavedStrategies} />}
+    </>
+  );
+
+  if (isDesktop) {
+    return (
+      <div className="app">
+        {/* Desktop sidebar */}
+        <aside className="desktop-sidebar">
+          <div className="sidebar-brand">
+            <div className="sidebar-brand-icon">↗</div>
+            <div>
+              <div className="sidebar-brand-text">TradeJournal</div>
+              <div className="sidebar-brand-sub">PRO</div>
+            </div>
+          </div>
+          {navItems.map(n => {
+            const isActive = page === n.id;
+            return (
+              <button key={n.id} className={`sidebar-nav-item ${isActive ? 'active' : ''}`}
+                onClick={() => { if(n.id === 'nouveau') setEditTrade(null); setPage(n.id); }}>
+                <span className="sidebar-nav-icon" style={{color: isActive ? 'white' : 'var(--muted)'}}>
+                  {n.svg}
+                </span>
+                {n.label}
+              </button>
+            );
+          })}
+          {/* Account pill at bottom */}
+          <div style={{marginTop:'auto', paddingTop:16}}>
+            <button onClick={() => setPage('parametres')} className="sidebar-account-pill" style={{display:'flex',alignItems:'center',gap:8,width:'100%',border:'none',cursor:'pointer',background:'var(--bg)',borderRadius:12,padding:'10px 12px',borderWidth:1,borderStyle:'solid',borderColor:'var(--border)'}}>
+              <div className="sidebar-account-dot" />
+              <div style={{flex:1,textAlign:'left',overflow:'hidden'}}>
+                <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,fontWeight:700,color:'var(--text)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{activeAccount.name}</div>
+                <div style={{fontSize:10,color:'var(--muted)'}}>Compte actif</div>
+              </div>
+              <span style={{fontSize:10,color:'var(--muted)'}}>⚙</span>
+            </button>
+          </div>
+        </aside>
+
+        {/* Main area */}
+        <div className="desktop-main">
+          {/* Top bar */}
+          <div className="desktop-topbar">
+            <div style={{fontFamily:"'Syne',sans-serif", fontWeight:800, fontSize:22, color:'var(--text)'}}>{pageTitles[page]}</div>
+            <div style={{display:'flex', alignItems:'center', gap:10}}>
+              <span style={{fontSize:12, color:'var(--muted)'}}>{activeAccount.trades.length} trades</span>
+              <div style={{width:1, height:16, background:'var(--border)'}} />
+              <span style={{fontSize:12, fontWeight:600, color: (activeAccount.trades.reduce((s,t)=>s+t.pnl,0)) >= 0 ? 'var(--green)' : 'var(--red)'}}>
+                {activeAccount.trades.length ? (activeAccount.trades.reduce((s,t)=>s+t.pnl,0) >= 0 ? '+' : '') + activeAccount.trades.reduce((s,t)=>s+t.pnl,0).toFixed(2) + ' €' : '0,00 €'}
+              </span>
+            </div>
+          </div>
+          {/* Scrollable content */}
+          <div className="desktop-scroll">
+            {pageContent}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Mobile layout
+  return (
+    <div className="app">
+      <div style={{padding:'14px 20px 10px', background:'var(--bg)', position:'sticky', top:0, zIndex:100, borderBottom:'1px solid var(--border)'}}>
+        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+          <div style={{fontFamily:"'Syne', sans-serif", fontWeight:800, fontSize:22, color:'var(--text)'}}>{pageTitles[page]}</div>
+          <button onClick={() => setPage('parametres')} style={{display:'flex',alignItems:'center',gap:6,background:'var(--card)',border:'1.5px solid var(--border)',borderRadius:20,padding:'5px 12px',cursor:'pointer',boxShadow:'var(--shadow)'}}>
+            <div style={{width:8,height:8,borderRadius:'50%',background:'var(--green)',flexShrink:0}}></div>
+            <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,fontWeight:600,color:'var(--text)',maxWidth:110,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{activeAccount.name}</span>
+            <span style={{fontSize:10,color:'var(--muted)'}}>▾</span>
+          </button>
+        </div>
+      </div>
+      {pageContent}
+      <nav className="bottom-nav">
+        {navItems.map(n => {
+          const isActive = page === n.id;
+          return (
+            <button key={n.id} className={`bottom-nav-item ${isActive ? 'active' : ''}`} onClick={() => { if(n.id === 'nouveau') { setEditTrade(null); } setPage(n.id); }}>
+              <span style={{display:'flex', alignItems:'center', justifyContent:'center', width:24, height:24, color: isActive ? 'var(--blue)' : 'var(--muted)', transition:'color 0.2s'}}>
+                {n.svg}
+              </span>
+              <span className="nav-label" style={{color: isActive ? 'var(--blue)' : 'var(--muted)'}}>{n.label}</span>
+            </button>
+          );
+        })}
+      </nav>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(
+  <AuthGate><App /></AuthGate>
+);
+</script>
+
+<script>
+// Register Service Worker
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js')
+      .then(reg => console.log('[PWA] Service Worker registered:', reg.scope))
+      .catch(err => console.warn('[PWA] SW registration failed:', err));
+  });
+}
+
+// Sync theme-color meta tag with app theme
+const observer = new MutationObserver(() => {
+  const isDark = document.body.classList.contains('dark');
+  const meta = document.getElementById('theme-color-meta');
+  if (meta) meta.content = isDark ? '#0F1117' : '#2563EB';
+});
+observer.observe(document.body, { attributes: true, attributeFilter: ['class'] });
+</script>
+</body>
+</html>
