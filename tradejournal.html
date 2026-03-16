@@ -2384,19 +2384,30 @@ function App({ onLogout, currentUser }) {
     document.body.classList.toggle('dark', theme === 'dark');
   }, [theme]);
 
+  const [debugStatus, setDebugStatus] = useState('init');
+
   // Load all data from Supabase on mount — use currentUser passed from AuthGate
   useEffect(() => {
-    if (currentUser) loadAllData(currentUser);
-  }, [currentUser]);
+    if (currentUser) {
+      setDebugStatus('loading...');
+      loadAllData(currentUser);
+    } else {
+      setDebugStatus('no user');
+    }
+  }, [currentUser?.id]);
 
   const loadAllData = async (user) => {
     setDbLoading(true);
+    setDebugStatus('fetching accounts...');
     try {
       // Load accounts
-      const { data: accs } = await supabase
+      const { data: accs, error: accsErr } = await supabase
         .from('accounts')
         .select('*')
         .order('created_at', { ascending: true });
+
+      if (accsErr) { setDebugStatus('error: ' + accsErr.message); setDbLoading(false); return; }
+      setDebugStatus('accounts ok, loading trades...');
 
       // Load trades
       const { data: trds } = await supabase
@@ -2404,19 +2415,25 @@ function App({ onLogout, currentUser }) {
         .select('*')
         .order('created_at', { ascending: true });
 
+      setDebugStatus('trades ok, loading strategies...');
+
       // Load strategies
       const { data: strats } = await supabase
         .from('strategies')
         .select('*')
         .order('created_at', { ascending: true });
 
+      setDebugStatus('all loaded, rendering...');
+
       if (!accs || accs.length === 0) {
         // First login — create default account
-        const { data: newAcc } = await supabase
+        const { data: newAcc, error: newAccErr } = await supabase
           .from('accounts')
           .insert({ user_id: user.id, name: 'Compte Principal', initial_capital: 10000, currency: 'EUR' })
           .select()
           .single();
+
+        if (newAccErr) { setDebugStatus('error creating account: ' + newAccErr.message); setDbLoading(false); return; }
 
         const defaultStrats = ['Breakout', 'Scalping', 'Swing', 'ICT', 'Mean Reversion'];
         await supabase.from('strategies').insert(
@@ -2463,6 +2480,7 @@ function App({ onLogout, currentUser }) {
         setSavedStrategies((strats || []).map(s => s.name));
       }
     } catch (err) {
+      setDebugStatus('catch error: ' + err.message);
       console.error('Error loading data:', err);
     }
     setDbLoading(false);
@@ -2582,6 +2600,7 @@ function App({ onLogout, currentUser }) {
           </svg>
         </div>
         <div style={{color:'var(--muted)', fontSize:14}}>Chargement de vos données...</div>
+        <div style={{color:'#6B7280', fontSize:11, fontFamily:'monospace', background:'#1A1D27', padding:'6px 12px', borderRadius:8}}>{debugStatus}</div>
       </div>
     );
   }
