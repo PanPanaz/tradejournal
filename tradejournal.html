@@ -2339,7 +2339,7 @@ function AuthScreen({ onAuth }) {
   );
 }
 
-function AuthGate({ children }) {
+function AuthGate() {
   const [authenticated, setAuthenticated] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -2365,8 +2365,14 @@ function AuthGate({ children }) {
     );
   }
 
-  if (!authenticated) return <AuthScreen onAuth={(user) => { setCurrentUser(user); setAuthenticated(true); }} />;
-  return React.cloneElement(children, { onLogout: () => { setAuthenticated(false); setCurrentUser(null); }, currentUser });
+  if (!authenticated) {
+    return <AuthScreen onAuth={(user) => {
+      setCurrentUser(user);
+      setAuthenticated(true);
+    }} />;
+  }
+
+  return <App currentUser={currentUser} onLogout={() => { setAuthenticated(false); setCurrentUser(null); }} />;
 }
 
 function App({ onLogout, currentUser }) {
@@ -2727,9 +2733,7 @@ function App({ onLogout, currentUser }) {
   );
 }
 
-ReactDOM.createRoot(document.getElementById('root')).render(
-  <AuthGate><App /></AuthGate>
-);
+ReactDOM.createRoot(document.getElementById('root')).render(<AuthGate />);
 </script>
 
 <script>
