@@ -2100,7 +2100,7 @@ function Parametres({ accounts, setAccounts, activeAccountId, setActiveAccountId
               try {
                 const data = JSON.parse(ev.target.result);
                 if (!data.accounts || !Array.isArray(data.accounts)) { showToast('Fichier invalide'); return; }
-                const user = currentUser;
+                const user = getCurrentUser();
                 // Import each account and its trades into Supabase
                 for (const acc of data.accounts) {
                   const { data: newAcc } = await supabase.from('accounts')
@@ -2144,6 +2144,11 @@ const SUPABASE_KEY = 'sb_publishable_xgke_frbQeTzbaxj9cV4Jg_YktV2YrH';
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // --- AUTH SCREENS ---
+// Global user store — avoids prop-passing issues on mobile
+let _currentUser = null;
+const getCurrentUser = () => _currentUser;
+const storeUser = (user) => { _currentUser = user; };
+
 function AuthScreen({ onAuth }) {
   const [mode, setMode] = useState('login'); // 'login' | 'register' | 'reset'
   const [email, setEmail] = useState('');
@@ -2162,6 +2167,7 @@ function AuthScreen({ onAuth }) {
     const { data, error: err } = await supabase.auth.signInWithPassword({ email, password });
     setLoading(false);
     if (err) { setError(err.message === 'Invalid login credentials' ? 'Email ou mot de passe incorrect' : err.message); return; }
+    storeUser(data.user);
     onAuth(data.user);
   };
 
@@ -2372,16 +2378,17 @@ function AuthGate() {
     }} />;
   }
 
-  return <App currentUser={currentUser} onLogout={() => { setAuthenticated(false); setCurrentUser(null); }} />;
+  return <App onLogout={() => { setAuthenticated(false); storeUser(null); }} />;
 }
 
-function App({ onLogout, currentUser }) {
+function App({ onLogout }) {
   const [page, setPage] = useState('dashboard');
   const [accounts, setAccounts] = useState([]);
   const [activeAccountId, setActiveAccountId] = useState(null);
   const [savedStrategies, setSavedStrategies] = useState([]);
   const [editTrade, setEditTrade] = useState(null);
   const [dbLoading, setDbLoading] = useState(true);
+  const [debugStatus, setDebugStatus] = useState('init');
 
   const [theme, setTheme] = useState(() => localStorage.getItem('tj_theme') || 'light');
 
@@ -2390,17 +2397,16 @@ function App({ onLogout, currentUser }) {
     document.body.classList.toggle('dark', theme === 'dark');
   }, [theme]);
 
-  const [debugStatus, setDebugStatus] = useState('init');
-
-  // Load all data from Supabase on mount — use currentUser passed from AuthGate
   useEffect(() => {
-    if (currentUser) {
-      setDebugStatus('loading...');
-      loadAllData(currentUser);
+    const user = getCurrentUser();
+    if (user) {
+      setDebugStatus('user: ' + user.email);
+      loadAllData(user);
     } else {
-      setDebugStatus('no user');
+      setDebugStatus('no user found');
+      setDbLoading(false);
     }
-  }, [currentUser?.id]);
+  }, []);
 
   const loadAllData = async (user) => {
     setDbLoading(true);
@@ -2496,7 +2502,7 @@ function App({ onLogout, currentUser }) {
   const addAccount = async (name, initialCapital, currency) => {
     const { data: newAcc } = await supabase
       .from('accounts')
-      .insert({ user_id: currentUser.id, name, initial_capital: parseFloat(initialCapital) || 0, currency })
+      .insert({ user_id: getCurrentUser().id, name, initial_capital: parseFloat(initialCapital) || 0, currency })
       .select().single();
     const mapped = { id: newAcc.id, name: newAcc.name, initialCapital: newAcc.initial_capital, currency: newAcc.currency, trades: [] };
     setAccounts(prev => [...prev, mapped]);
@@ -2523,7 +2529,7 @@ function App({ onLogout, currentUser }) {
 
   // --- TRADE OPERATIONS ---
   const setTrades = async (updater) => {
-    const user = currentUser;
+    const user = getCurrentUser();
     const currentTrades = accounts.find(a => a.id === activeAccountId)?.trades || [];
     const newTrades = typeof updater === 'function' ? updater(currentTrades) : updater;
 
@@ -2586,7 +2592,7 @@ function App({ onLogout, currentUser }) {
 
   // --- STRATEGY OPERATIONS ---
   const handleSetSavedStrategies = async (updater) => {
-    const user = currentUser;
+    const user = getCurrentUser();
     const newStrats = typeof updater === 'function' ? updater(savedStrategies) : updater;
 
     // Delete all and re-insert (simpler approach)
