@@ -12,16 +12,14 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="TradeJournal">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="description" content="Journal de trading professionnel — suivez et analysez vos performances">
-
-<!-- Apple touch icon (inline SVG via data URI) -->
+<meta name="description" content="Journal de trading professionnel">
 <link rel="apple-touch-icon" href="icon-192.png">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500;600&family=Lora:wght@500&display=swap" rel="stylesheet">
 <style>
   /* Override digits globally with Lora via unicode-range font-face */
@@ -111,16 +109,42 @@
 
   /* Layout */
   .app { display: flex; flex-direction: column; min-height: 100vh; max-width: 430px; margin: 0 auto; background: var(--bg); position: relative; }
-
+  
   /* Top bar */
+  .topbar {
+    display: flex; align-items: center; gap: 10px;
+    padding: 14px 16px 10px;
+    background: var(--bg);
+    position: sticky; top: 0; z-index: 100;
+    border-bottom: 1px solid var(--border);
+  }
+  .topbar .logo { width: 36px; height: 36px; background: linear-gradient(135deg, #FF8C42, #EA580C); border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .topbar .logo svg { width: 20px; height: 20px; }
+  .topbar-tabs { display: flex; gap: 4px; flex: 1; }
+  .topbar-tab { padding: 6px 14px; border-radius: 20px; font-size: 14px; font-weight: 500; cursor: pointer; border: none; background: transparent; color: var(--muted); transition: all 0.2s; }
+  .topbar-tab.active { background: var(--card); color: var(--text); font-weight: 600; box-shadow: var(--shadow); }
+  .topbar-icons { display: flex; gap: 8px; }
+  .icon-btn { width: 34px; height: 34px; border-radius: 10px; display: flex; align-items: center; justify-content: center; border: none; cursor: pointer; font-size: 16px; }
+  .icon-btn.orange { background: #FEF3C7; color: var(--orange); }
+  .icon-btn.dark { background: var(--text); color: white; }
 
   /* Content */
   .content { flex: 1; padding: 16px; display: flex; flex-direction: column; gap: 14px; overflow-y: auto; padding-bottom: 80px; }
 
   /* Menu drawer */
+  .menu-btn { width: 42px; height: 42px; border-radius: 12px; background: var(--card); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: var(--shadow); flex-shrink: 0; }
+  .drawer-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.35); z-index: 200; backdrop-filter: blur(2px); }
+  .drawer { position: fixed; left: 0; top: 0; bottom: 0; width: 280px; background: white; z-index: 300; padding: 24px 20px; display: flex; flex-direction: column; gap: 8px; box-shadow: var(--shadow-md); border-radius: 0 24px 24px 0; }
+  .drawer-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+  .drawer-brand { display: flex; align-items: center; gap: 10px; }
+  .drawer-brand-icon { width: 40px; height: 40px; background: var(--blue); border-radius: 12px; display: flex; align-items: center; justify-content: center; color: white; font-size: 18px; }
+  .drawer-brand-text { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 16px; }
+  .drawer-brand-sub { font-size: 11px; font-weight: 600; color: var(--muted); letter-spacing: 1px; }
+  .drawer-close { width: 32px; height: 32px; border-radius: 8px; border: 1px solid var(--border); background: none; cursor: pointer; font-size: 18px; color: var(--muted); display: flex; align-items: center; justify-content: center; }
   .nav-item { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 12px; cursor: pointer; font-size: 15px; font-weight: 500; color: var(--muted); transition: all 0.15s; border: none; background: none; width: 100%; text-align: left; }
   .nav-item.active { background: var(--blue); color: white; font-weight: 600; }
   .nav-item:hover:not(.active) { background: var(--bg); color: var(--text); }
+  .nav-icon { font-size: 17px; width: 22px; text-align: center; }
 
   /* Cards */
   .card { background: var(--card); border-radius: var(--radius); padding: 20px; box-shadow: var(--shadow); border: 1px solid var(--border); }
@@ -132,9 +156,11 @@
   .badge.green { background: var(--green-light); color: var(--green); }
   .badge.blue { background: var(--blue-light); color: var(--blue); }
   .card-sub { font-size: 13px; color: var(--muted); margin-top: 4px; }
+  .card-icon { width: 36px; height: 36px; border-radius: 10px; background: var(--bg); display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 17px; }
   .card-row { display: flex; align-items: flex-start; justify-content: space-between; }
 
   /* Grid 2 cols */
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 
   /* Chart card */
   .chart-card { background: var(--card); border-radius: var(--radius); padding: 20px; box-shadow: var(--shadow); border: 1px solid var(--border); }
@@ -173,6 +199,8 @@
   .filter-select { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 8px 12px; font-family: 'DM Sans', sans-serif; font-size: 14px; color: var(--text); cursor: pointer; box-shadow: var(--shadow); outline: none; appearance: none; padding-right: 28px; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%237A8299' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 10px center; }
 
   /* Page header */
+  .page-header { display: flex; align-items: center; gap: 14px; }
+  .page-title { font-family: 'Syne', sans-serif; font-size: 26px; font-weight: 800; }
   .page-sub { font-size: 14px; color: var(--muted); margin-top: 2px; }
 
   /* New trade button */
@@ -253,163 +281,24 @@
   .bottom-nav-item .nav-ico { font-size: 20px; color: var(--muted); }
   .bottom-nav-item.active .nav-ico { color: var(--blue); }
 
-  /* ===== RESPONSIVE DESKTOP ===== */
   @media (min-width: 768px) {
     body { overflow: hidden; }
-
-    /* Full-width app on desktop */
-    .app {
-      max-width: 100%;
-      flex-direction: row;
-      height: 100vh;
-      overflow: hidden;
-    }
-
-    /* Sidebar */
-    .desktop-sidebar {
-      width: 220px;
-      flex-shrink: 0;
-      background: var(--card);
-      border-right: 1px solid var(--border);
-      display: flex;
-      flex-direction: column;
-      padding: 24px 16px 20px;
-      height: 100vh;
-      position: sticky;
-      top: 0;
-      overflow-y: auto;
-      transition: background 0.3s, border-color 0.3s;
-    }
-    .sidebar-brand {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      margin-bottom: 28px;
-      padding: 0 4px;
-    }
-    .sidebar-brand-icon {
-      width: 34px;
-      height: 34px;
-      background: var(--blue);
-      border-radius: 10px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: white;
-      font-size: 16px;
-      flex-shrink: 0;
-    }
-    .sidebar-brand-text {
-      font-family: 'Syne', sans-serif;
-      font-weight: 800;
-      font-size: 15px;
-      color: var(--text);
-      line-height: 1.1;
-    }
-    .sidebar-brand-sub {
-      font-size: 10px;
-      font-weight: 700;
-      letter-spacing: 1px;
-      color: var(--blue);
-      text-transform: uppercase;
-    }
-    .sidebar-nav-item {
-      display: flex;
-      align-items: center;
-      gap: 11px;
-      padding: 10px 12px;
-      border-radius: 12px;
-      cursor: pointer;
-      border: none;
-      background: none;
-      width: 100%;
-      text-align: left;
-      font-family: 'DM Sans', sans-serif;
-      font-size: 14px;
-      font-weight: 500;
-      color: var(--muted);
-      transition: all 0.15s;
-      margin-bottom: 2px;
-    }
+    .app { max-width: 100%; flex-direction: row; height: 100vh; overflow: hidden; }
+    .desktop-sidebar { width: 220px; flex-shrink: 0; background: var(--card); border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 24px 16px 20px; height: 100vh; position: sticky; top: 0; overflow-y: auto; transition: background 0.3s, border-color 0.3s; }
+    .sidebar-brand { display: flex; align-items: center; gap: 10px; margin-bottom: 28px; padding: 0 4px; }
+    .sidebar-brand-icon { width: 34px; height: 34px; background: var(--blue); border-radius: 10px; display: flex; align-items: center; justify-content: center; color: white; font-size: 16px; flex-shrink: 0; }
+    .sidebar-brand-text { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 15px; color: var(--text); line-height: 1.1; }
+    .sidebar-brand-sub { font-size: 10px; font-weight: 700; letter-spacing: 1px; color: var(--blue); text-transform: uppercase; }
+    .sidebar-nav-item { display: flex; align-items: center; gap: 11px; padding: 10px 12px; border-radius: 12px; cursor: pointer; border: none; background: none; width: 100%; text-align: left; font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 500; color: var(--muted); transition: all 0.15s; margin-bottom: 2px; }
     .sidebar-nav-item:hover { background: var(--bg); color: var(--text); }
     .sidebar-nav-item.active { background: var(--blue); color: white; font-weight: 600; }
-    .sidebar-nav-item.active svg { stroke: white; }
     .sidebar-nav-icon { display: flex; align-items: center; width: 20px; flex-shrink: 0; }
-    .sidebar-account-pill {
-      margin-top: auto;
-      padding: 12px;
-      background: var(--bg);
-      border-radius: 12px;
-      border: 1px solid var(--border);
-      cursor: pointer;
-    }
-    .sidebar-account-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); flex-shrink: 0; }
-
-    /* Main content area */
-    .desktop-main {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      height: 100vh;
-      overflow: hidden;
-    }
-
-    /* Top bar on desktop */
-    .desktop-topbar {
-      padding: 16px 28px 12px;
-      background: var(--bg);
-      border-bottom: 1px solid var(--border);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      flex-shrink: 0;
-      transition: background 0.3s;
-    }
-
-    /* Scrollable content */
-    .desktop-scroll {
-      flex: 1;
-      overflow-y: auto;
-      padding: 24px 28px;
-      padding-bottom: 32px;
-    }
-
-    /* Hide bottom nav on desktop */
+    .desktop-main { flex: 1; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+    .desktop-topbar { padding: 16px 28px 12px; background: var(--bg); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; transition: background 0.3s; }
+    .desktop-scroll { flex: 1; overflow-y: auto; padding: 24px 28px 32px; }
     .bottom-nav { display: none; }
-
-    /* Content layout on desktop */
-    .content {
-      padding: 0;
-      padding-bottom: 0;
-      max-width: 900px;
-      width: 100%;
-      margin: 0 auto;
-    }
-
-    /* Dashboard stat cards — 4 in a row on desktop */
-    .desktop-stat-row {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 14px;
-    }
-
-    /* Analyses stat grid — larger */
-    .stat-grid { grid-template-columns: repeat(4, 1fr); }
-
-    /* Charts side by side on desktop */
-    .desktop-chart-row {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 14px;
-    }
-
-    /* Form max width on desktop */
-    .form-section { max-width: 680px; margin: 0 auto; }
-
-    /* Card value larger on desktop */
-    .card-value { font-size: 32px; }
+    .content { padding: 0; max-width: 900px; width: 100%; margin: 0 auto; }
   }
-
   @media (min-width: 1200px) {
     .desktop-sidebar { width: 240px; }
     .content { max-width: 1100px; }
@@ -492,6 +381,7 @@ function formatDate(d) {
   return dateStr;
 }
 
+// --- TRADING SESSION CLOCKS ---
 const SESSIONS = [
   {
     city: 'Londres', tz: 'Europe/London', flag: '🇬🇧',
@@ -854,6 +744,7 @@ function Dashboard({ trades, settings, setPage }) {
   );
 }
 
+// --- MES TRADES ---
 function MesTrades({ trades, setTrades, setPage, setEditTrade }) {
   const [search, setSearch] = useState('');
   const [filterDir, setFilterDir] = useState('Toutes');
@@ -906,6 +797,7 @@ function MesTrades({ trades, setTrades, setPage, setEditTrade }) {
   );
 }
 
+// --- NOUVEAU TRADE ---
 // Configs de calcul par classe d'actif
 const ASSET_CALC = {
   'Forex': {
@@ -1319,6 +1211,7 @@ function NouveauTrade({ trades, setTrades, setPage, editTrade, savedStrategies, 
   );
 }
 
+// --- TRADE CALENDAR ---
 function TradeCalendar({ trades }) {
   const now = new Date();
   const [viewYear, setViewYear] = useState(now.getFullYear());
@@ -1472,6 +1365,7 @@ function TradeCalendar({ trades }) {
   );
 }
 
+// --- ANALYSES ---
 function Analyses({ trades, theme }) {
   const totalPnl = trades.reduce((s,t) => s + t.pnl, 0);
   const wins = trades.filter(t => t.pnl > 0);
@@ -1486,7 +1380,7 @@ function Analyses({ trades, theme }) {
   // by asset
   const assets = {};
   trades.forEach(t => { if (!assets[t.asset]) assets[t.asset] = 0; assets[t.asset] += t.pnl; });
-
+  
   // by strategy
   const strats = {};
   trades.forEach(t => {
@@ -1730,8 +1624,8 @@ function Analyses({ trades, theme }) {
       <TradeCalendar trades={trades} />
 
       <div className="stat-grid">
-        <div className="stat-card"><div className="stat-label">Meilleur Trade</div><div className="stat-value" style={{color:'var(--green)'}}>{best ? formatPnl(best.pnl) : '—'}</div><div className="stat-sub">{best?.instrument}</div></div>
-        <div className="stat-card"><div className="stat-label">Pire Trade</div><div className="stat-value" style={{color:'var(--red)'}}>{worst ? formatPnl(worst.pnl) : '—'}</div><div className="stat-sub">{worst?.instrument}</div></div>
+        <div className="stat-card"><div className="stat-label">Meilleur Trade</div><div className="stat-value" style={{color:'var(--green)'}}>{best && best.pnl > 0 ? formatPnl(best.pnl) : '—'}</div><div className="stat-sub">{best && best.pnl > 0 ? best.instrument : ''}</div></div>
+        <div className="stat-card"><div className="stat-label">Pire Trade</div><div className="stat-value" style={{color:'var(--red)'}}>{worst && worst.pnl < 0 ? formatPnl(worst.pnl) : '—'}</div><div className="stat-sub">{worst && worst.pnl < 0 ? worst.instrument : ''}</div></div>
         <div className="stat-card"><div className="stat-label">P&L Long</div><div className="stat-value" style={{color:'var(--green)'}}>{formatPnl(longPnl)}</div><div className="stat-sub">{longs.length} trades</div></div>
         <div className="stat-card"><div className="stat-label">P&L Short</div><div className="stat-value" style={{color: shortPnl >= 0 ? 'var(--green)' : 'var(--red)'}}>{formatPnl(shortPnl)}</div><div className="stat-sub">{shorts.length} trades</div></div>
       </div>
@@ -1806,7 +1700,8 @@ function Analyses({ trades, theme }) {
   );
 }
 
-function Parametres({ accounts, setAccounts, activeAccountId, setActiveAccountId, theme, setTheme, savedStrategies, setSavedStrategies, onLogout, addAccount, updateAccount, deleteAccount: deleteAccountDB }) {
+// --- PARAMÈTRES MULTI-COMPTE ---
+function Parametres({ accounts, setAccounts, activeAccountId, setActiveAccountId, theme, setTheme, savedStrategies, setSavedStrategies, onLogout }) {
   const [editingId, setEditingId] = useState(null);
   const [editForm, setEditForm] = useState({});
   const [newForm, setNewForm] = useState({ name: '', initialCapital: '', currency: 'EUR' });
@@ -1819,23 +1714,25 @@ function Parametres({ accounts, setAccounts, activeAccountId, setActiveAccountId
 
   const startEdit = acc => { setEditingId(acc.id); setEditForm({ name: acc.name, initialCapital: acc.initialCapital, currency: acc.currency }); };
 
-  const saveEdit = async () => {
-    await updateAccount(editingId, editForm);
+  const saveEdit = () => {
+    setAccounts(prev => prev.map(a => a.id === editingId ? { ...a, name: editForm.name, initialCapital: parseFloat(editForm.initialCapital)||0, currency: editForm.currency } : a));
     setEditingId(null);
     showToast('Compte mis à jour !');
   };
 
-  const createAccount = async () => {
+  const createAccount = () => {
     if (!newForm.name.trim()) { showToast('Entrez un nom de compte'); return; }
-    await addAccount(newForm.name.trim(), newForm.initialCapital, newForm.currency || 'EUR');
+    const newAcc = { id: 'acc_' + Date.now(), name: newForm.name.trim(), initialCapital: parseFloat(newForm.initialCapital)||0, currency: newForm.currency || 'EUR', trades: [] };
+    setAccounts(prev => [...prev, newAcc]);
     setNewForm({ name: '', initialCapital: '', currency: 'EUR' });
     setShowNew(false);
     showToast('Compte créé !');
   };
 
-  const handleDeleteAccount = async id => {
+  const deleteAccount = id => {
     if (accounts.length === 1) { showToast('Impossible de supprimer le dernier compte'); return; }
-    await deleteAccountDB(id);
+    setAccounts(prev => prev.filter(a => a.id !== id));
+    if (activeAccountId === id) setActiveAccountId(accounts.find(a => a.id !== id)?.id);
     setConfirmDelete(null);
     showToast('Compte supprimé');
   };
@@ -1939,7 +1836,7 @@ function Parametres({ accounts, setAccounts, activeAccountId, setActiveAccountId
             <div style={{fontSize:14,color:'var(--muted)',marginBottom:20}}>Tous les trades associés seront définitivement supprimés.</div>
             <div className="btn-row">
               <button className="btn-cancel" onClick={() => setConfirmDelete(null)}>Annuler</button>
-              <button style={{background:'var(--red)',color:'white',border:'none',borderRadius:12,padding:'13px 20px',fontFamily:"'DM Sans',sans-serif",fontSize:15,fontWeight:600,cursor:'pointer',flex:1}} onClick={() => handleDeleteAccount(confirmDelete)}>Supprimer</button>
+              <button style={{background:'var(--red)',color:'white',border:'none',borderRadius:12,padding:'13px 20px',fontFamily:"'DM Sans',sans-serif",fontSize:15,fontWeight:600,cursor:'pointer',flex:1}} onClick={() => deleteAccount(confirmDelete)}>Supprimer</button>
             </div>
           </div>
         </div>
@@ -2092,35 +1989,17 @@ function Parametres({ accounts, setAccounts, activeAccountId, setActiveAccountId
         </button>
         <label style={{display:'flex', alignItems:'center', justifyContent:'center', gap:8, background:'var(--bg)', color:'var(--text)', border:'1.5px solid var(--border)', borderRadius:12, padding:'12px', fontFamily:"'DM Sans',sans-serif", fontSize:14, fontWeight:600, cursor:'pointer', width:'100%'}}>
           ⬆ Importer une sauvegarde
-          <input type="file" accept=".json" style={{display:'none'}} onChange={async e => {
+          <input type="file" accept=".json" style={{display:'none'}} onChange={e => {
             const file = e.target.files[0];
             if (!file) return;
             const reader = new FileReader();
-            reader.onload = async ev => {
+            reader.onload = ev => {
               try {
                 const data = JSON.parse(ev.target.result);
                 if (!data.accounts || !Array.isArray(data.accounts)) { showToast('Fichier invalide'); return; }
-                const user = currentUser;
-                // Import each account and its trades into Supabase
-                for (const acc of data.accounts) {
-                  const { data: newAcc } = await supabase.from('accounts')
-                    .insert({ user_id: user.id, name: acc.name, initial_capital: acc.initialCapital || 10000, currency: acc.currency || 'EUR' })
-                    .select().single();
-                  if (newAcc && acc.trades?.length) {
-                    await supabase.from('trades').insert(acc.trades.map(t => ({
-                      account_id: newAcc.id, user_id: user.id,
-                      instrument: t.instrument, asset: t.asset, direction: t.direction,
-                      qty: t.qty, entry: t.entry, exit: t.exit,
-                      entry_date: t.entryDate, exit_date: t.exitDate,
-                      pnl: t.pnl, fees: t.fees, strategy: t.strategy,
-                      rating: t.rating, notes: t.notes, psychology: t.psychology,
-                      manual_pnl: t.manualPnl, pip_value: t.pipValue,
-                      point_value: t.pointValue, premium: t.premium, images: t.images || [],
-                    })));
-                  }
-                }
-                showToast('Import réussi ! Rechargement...');
-                setTimeout(() => window.location.reload(), 1500);
+                setAccounts(data.accounts);
+                if (data.activeAccountId) setActiveAccountId(data.activeAccountId);
+                showToast('Données importées !');
               } catch { showToast('Erreur lors de l\'import'); }
             };
             reader.readAsText(file);
@@ -2138,14 +2017,14 @@ function Parametres({ accounts, setAccounts, activeAccountId, setActiveAccountId
   );
 }
 
-// --- SUPABASE ---
+// --- APP ---
+// --- SUPABASE AUTH (login only — data stays in localStorage) ---
 const SUPABASE_URL = 'https://qnzjtjabhugnuannsdcw.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_xgke_frbQeTzbaxj9cV4Jg_YktV2YrH';
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-// --- AUTH SCREENS ---
 function AuthScreen({ onAuth }) {
-  const [mode, setMode] = useState('login'); // 'login' | 'register' | 'reset'
+  const [mode, setMode] = useState('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -2154,440 +2033,209 @@ function AuthScreen({ onAuth }) {
   const [success, setSuccess] = useState('');
   const [showPwd, setShowPwd] = useState(false);
 
-  const reset = () => { setError(''); setSuccess(''); };
+  const resetMsg = () => { setError(''); setSuccess(''); };
 
   const handleLogin = async () => {
     if (!email || !password) { setError('Remplissez tous les champs'); return; }
-    setLoading(true); reset();
-    const { data, error: err } = await supabase.auth.signInWithPassword({ email, password });
+    setLoading(true); resetMsg();
+    const { error: err } = await supabase.auth.signInWithPassword({ email, password });
     setLoading(false);
     if (err) { setError(err.message === 'Invalid login credentials' ? 'Email ou mot de passe incorrect' : err.message); return; }
-    onAuth(data.user);
+    onAuth();
   };
 
   const handleRegister = async () => {
     if (!email || !password || !confirmPassword) { setError('Remplissez tous les champs'); return; }
     if (password !== confirmPassword) { setError('Les mots de passe ne correspondent pas'); return; }
     if (password.length < 6) { setError('Le mot de passe doit faire au moins 6 caractères'); return; }
-    setLoading(true); reset();
+    setLoading(true); resetMsg();
     const { data, error: err } = await supabase.auth.signUp({ email, password });
     setLoading(false);
     if (err) { setError(err.message); return; }
     if (data?.user?.identities?.length === 0) { setError('Un compte existe déjà avec cet email'); return; }
-    setSuccess('Compte créé ! Vérifiez votre email pour confirmer puis connectez-vous.');
+    setSuccess('Compte créé ! Vérifiez votre email puis connectez-vous.');
     setMode('login');
   };
 
   const handleReset = async () => {
     if (!email) { setError('Entrez votre adresse email'); return; }
-    setLoading(true); reset();
+    setLoading(true); resetMsg();
     const { error: err } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: 'https://panpanaz.github.io/tradejournal/tradejournal.html'
     });
     setLoading(false);
     if (err) { setError(err.message); return; }
-    setSuccess('Email de réinitialisation envoyé ! Vérifiez votre boîte mail.');
+    setSuccess('Email de réinitialisation envoyé !');
   };
 
-  const handleKeyDown = (e) => {
-    if (e.key === 'Enter') {
-      if (mode === 'login') handleLogin();
-      else if (mode === 'register') handleRegister();
-      else handleReset();
-    }
+  const handleKey = (e) => {
+    if (e.key !== 'Enter') return;
+    if (mode === 'login') handleLogin();
+    else if (mode === 'register') handleRegister();
+    else handleReset();
   };
+
+  const inputStyle = { width:'100%', padding:'12px 14px', background:'#13161F', border:'1.5px solid #2A2D3A', borderRadius:10, color:'white', fontSize:14, outline:'none', boxSizing:'border-box', fontFamily:"'DM Sans',sans-serif" };
 
   return (
-    <div style={{
-      minHeight:'100vh', background:'linear-gradient(135deg, #0F1117 0%, #1A1D27 50%, #0F1117 100%)',
-      display:'flex', alignItems:'center', justifyContent:'center', padding:'20px',
-      fontFamily:"'DM Sans', sans-serif"
-    }}>
+    <div style={{minHeight:'100vh', background:'linear-gradient(135deg,#0F1117 0%,#1A1D27 50%,#0F1117 100%)', display:'flex', alignItems:'center', justifyContent:'center', padding:'20px', fontFamily:"'DM Sans',sans-serif"}}>
       <div style={{width:'100%', maxWidth:400}}>
-
-        {/* Logo & Brand */}
         <div style={{textAlign:'center', marginBottom:40}}>
-          <div style={{width:64, height:64, background:'var(--blue)', borderRadius:18, display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 16px', boxShadow:'0 8px 32px rgba(37,99,235,0.4)'}}>
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
-            </svg>
+          <div style={{width:64, height:64, background:'#2563EB', borderRadius:18, display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 16px', boxShadow:'0 8px 32px rgba(37,99,235,0.4)'}}>
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
           </div>
-          <div style={{fontFamily:"'Syne',sans-serif", fontWeight:800, fontSize:26, color:'white', letterSpacing:'-0.5px'}}>
-            TradeJournal
-          </div>
+          <div style={{fontFamily:"'Syne',sans-serif", fontWeight:800, fontSize:26, color:'white'}}>TradeJournal</div>
           <div style={{fontSize:12, fontWeight:700, letterSpacing:'2px', color:'#2563EB', textTransform:'uppercase', marginTop:2}}>PRO</div>
         </div>
 
-        {/* Card */}
         <div style={{background:'#1A1D27', borderRadius:20, padding:'32px 28px', border:'1px solid #2A2D3A', boxShadow:'0 24px 64px rgba(0,0,0,0.4)'}}>
-
-          {/* Tab switcher */}
           {mode !== 'reset' && (
             <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', background:'#13161F', borderRadius:12, padding:4, marginBottom:28, gap:4}}>
-              {[['login','Connexion'],['register','Inscription']].map(([m, l]) => (
-                <button key={m} onClick={() => { setMode(m); reset(); setPassword(''); setConfirmPassword(''); }}
-                  style={{padding:'9px', borderRadius:9, border:'none', cursor:'pointer', fontFamily:"'Syne',sans-serif", fontWeight:700, fontSize:13, transition:'all 0.2s',
-                    background: mode===m ? '#2563EB' : 'transparent',
-                    color: mode===m ? 'white' : '#6B7280'}}>
+              {[['login','Connexion'],['register','Inscription']].map(([m,l]) => (
+                <button key={m} onClick={() => { setMode(m); resetMsg(); setPassword(''); setConfirmPassword(''); }}
+                  style={{padding:'9px', borderRadius:9, border:'none', cursor:'pointer', fontFamily:"'Syne',sans-serif", fontWeight:700, fontSize:13, transition:'all 0.2s', background: mode===m ? '#2563EB' : 'transparent', color: mode===m ? 'white' : '#6B7280'}}>
                   {l}
                 </button>
               ))}
             </div>
           )}
-
           {mode === 'reset' && (
             <div style={{marginBottom:24}}>
-              <button onClick={() => { setMode('login'); reset(); }} style={{background:'none', border:'none', color:'#6B7280', cursor:'pointer', fontSize:13, display:'flex', alignItems:'center', gap:6, padding:0}}>
-                ← Retour à la connexion
-              </button>
+              <button onClick={() => { setMode('login'); resetMsg(); }} style={{background:'none', border:'none', color:'#6B7280', cursor:'pointer', fontSize:13, padding:0}}>← Retour</button>
               <div style={{fontFamily:"'Syne',sans-serif", fontWeight:800, fontSize:20, color:'white', marginTop:12}}>Mot de passe oublié</div>
-              <div style={{fontSize:13, color:'#6B7280', marginTop:4}}>On vous envoie un lien de réinitialisation</div>
             </div>
           )}
 
-          {/* Fields */}
           <div style={{display:'flex', flexDirection:'column', gap:14}}>
             <div>
               <label style={{fontSize:12, fontWeight:600, color:'#9CA3AF', display:'block', marginBottom:6}}>Adresse email</label>
-              <input type="email" value={email} onChange={e => setEmail(e.target.value)} onKeyDown={handleKeyDown}
-                placeholder="vous@exemple.com" autoComplete="email"
-                style={{width:'100%', padding:'12px 14px', background:'#13161F', border:'1.5px solid #2A2D3A', borderRadius:10,
-                  color:'white', fontSize:14, outline:'none', boxSizing:'border-box',
-                  fontFamily:"'DM Sans',sans-serif", transition:'border-color 0.15s'}}
-                onFocus={e => e.target.style.borderColor='#2563EB'}
-                onBlur={e => e.target.style.borderColor='#2A2D3A'} />
+              <input type="email" value={email} onChange={e=>setEmail(e.target.value)} onKeyDown={handleKey} placeholder="vous@exemple.com" autoComplete="email" style={inputStyle}
+                onFocus={e=>e.target.style.borderColor='#2563EB'} onBlur={e=>e.target.style.borderColor='#2A2D3A'} />
             </div>
-
             {mode !== 'reset' && (
               <div>
                 <label style={{fontSize:12, fontWeight:600, color:'#9CA3AF', display:'block', marginBottom:6}}>Mot de passe</label>
                 <div style={{position:'relative'}}>
-                  <input type={showPwd ? 'text' : 'password'} value={password} onChange={e => setPassword(e.target.value)} onKeyDown={handleKeyDown}
-                    placeholder="••••••••" autoComplete={mode==='login' ? 'current-password' : 'new-password'}
-                    style={{width:'100%', padding:'12px 44px 12px 14px', background:'#13161F', border:'1.5px solid #2A2D3A', borderRadius:10,
-                      color:'white', fontSize:14, outline:'none', boxSizing:'border-box',
-                      fontFamily:"'DM Sans',sans-serif", transition:'border-color 0.15s'}}
-                    onFocus={e => e.target.style.borderColor='#2563EB'}
-                    onBlur={e => e.target.style.borderColor='#2A2D3A'} />
-                  <button onClick={() => setShowPwd(v => !v)} style={{position:'absolute', right:12, top:'50%', transform:'translateY(-50%)', background:'none', border:'none', color:'#6B7280', cursor:'pointer', fontSize:16, padding:0}}>
-                    {showPwd ? '🙈' : '👁'}
-                  </button>
+                  <input type={showPwd?'text':'password'} value={password} onChange={e=>setPassword(e.target.value)} onKeyDown={handleKey} placeholder="••••••••"
+                    autoComplete={mode==='login'?'current-password':'new-password'}
+                    style={{...inputStyle, paddingRight:44}}
+                    onFocus={e=>e.target.style.borderColor='#2563EB'} onBlur={e=>e.target.style.borderColor='#2A2D3A'} />
+                  <button onClick={()=>setShowPwd(v=>!v)} style={{position:'absolute', right:12, top:'50%', transform:'translateY(-50%)', background:'none', border:'none', color:'#6B7280', cursor:'pointer', fontSize:16, padding:0}}>{showPwd?'🙈':'👁'}</button>
                 </div>
               </div>
             )}
-
             {mode === 'register' && (
               <div>
                 <label style={{fontSize:12, fontWeight:600, color:'#9CA3AF', display:'block', marginBottom:6}}>Confirmer le mot de passe</label>
-                <input type={showPwd ? 'text' : 'password'} value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} onKeyDown={handleKeyDown}
-                  placeholder="••••••••" autoComplete="new-password"
-                  style={{width:'100%', padding:'12px 14px', background:'#13161F', border:'1.5px solid #2A2D3A', borderRadius:10,
-                    color:'white', fontSize:14, outline:'none', boxSizing:'border-box',
-                    fontFamily:"'DM Sans',sans-serif", transition:'border-color 0.15s'}}
-                  onFocus={e => e.target.style.borderColor='#2563EB'}
-                  onBlur={e => e.target.style.borderColor='#2A2D3A'} />
+                <input type={showPwd?'text':'password'} value={confirmPassword} onChange={e=>setConfirmPassword(e.target.value)} onKeyDown={handleKey} placeholder="••••••••" autoComplete="new-password" style={inputStyle}
+                  onFocus={e=>e.target.style.borderColor='#2563EB'} onBlur={e=>e.target.style.borderColor='#2A2D3A'} />
               </div>
             )}
           </div>
 
-          {/* Error / Success */}
-          {error && (
-            <div style={{margin:'16px 0 0', padding:'10px 14px', background:'rgba(220,38,38,0.12)', border:'1px solid rgba(220,38,38,0.3)', borderRadius:10, fontSize:13, color:'#FCA5A5'}}>
-              ⚠️ {error}
-            </div>
-          )}
-          {success && (
-            <div style={{margin:'16px 0 0', padding:'10px 14px', background:'rgba(22,163,74,0.12)', border:'1px solid rgba(22,163,74,0.3)', borderRadius:10, fontSize:13, color:'#86EFAC'}}>
-              ✅ {success}
-            </div>
-          )}
+          {error && <div style={{marginTop:16, padding:'10px 14px', background:'rgba(220,38,38,0.12)', border:'1px solid rgba(220,38,38,0.3)', borderRadius:10, fontSize:13, color:'#FCA5A5'}}>⚠️ {error}</div>}
+          {success && <div style={{marginTop:16, padding:'10px 14px', background:'rgba(22,163,74,0.12)', border:'1px solid rgba(22,163,74,0.3)', borderRadius:10, fontSize:13, color:'#86EFAC'}}>✅ {success}</div>}
 
-          {/* CTA Button */}
-          <button onClick={mode==='login' ? handleLogin : mode==='register' ? handleRegister : handleReset}
-            disabled={loading}
-            style={{width:'100%', padding:'13px', marginTop:20, background: loading ? '#1E3A5F' : '#2563EB', color:'white', border:'none', borderRadius:12,
-              fontFamily:"'Syne',sans-serif", fontWeight:700, fontSize:15, cursor: loading ? 'not-allowed' : 'pointer',
-              boxShadow: loading ? 'none' : '0 4px 20px rgba(37,99,235,0.35)', transition:'all 0.2s',
-              display:'flex', alignItems:'center', justifyContent:'center', gap:8}}>
-            {loading ? (
-              <><span style={{display:'inline-block', animation:'spin 1s linear infinite'}}>⟳</span> Chargement...</>
-            ) : mode === 'login' ? 'Se connecter →' : mode === 'register' ? 'Créer mon compte →' : 'Envoyer le lien →'}
+          <button onClick={mode==='login'?handleLogin:mode==='register'?handleRegister:handleReset} disabled={loading}
+            style={{width:'100%', padding:'13px', marginTop:20, background:loading?'#1E3A5F':'#2563EB', color:'white', border:'none', borderRadius:12, fontFamily:"'Syne',sans-serif", fontWeight:700, fontSize:15, cursor:loading?'not-allowed':'pointer', boxShadow:loading?'none':'0 4px 20px rgba(37,99,235,0.35)', transition:'all 0.2s'}}>
+            {loading ? '...' : mode==='login' ? 'Se connecter →' : mode==='register' ? 'Créer mon compte →' : 'Envoyer le lien →'}
           </button>
 
-          {/* Forgot password link */}
           {mode === 'login' && (
             <div style={{textAlign:'center', marginTop:16}}>
-              <button onClick={() => { setMode('reset'); reset(); }}
-                style={{background:'none', border:'none', color:'#6B7280', cursor:'pointer', fontSize:13, textDecoration:'underline'}}>
-                Mot de passe oublié ?
-              </button>
+              <button onClick={()=>{setMode('reset');resetMsg();}} style={{background:'none', border:'none', color:'#6B7280', cursor:'pointer', fontSize:13, textDecoration:'underline'}}>Mot de passe oublié ?</button>
             </div>
           )}
         </div>
-
-        {/* Footer */}
-        <div style={{textAlign:'center', marginTop:24, fontSize:12, color:'#4B5563'}}>
-          Vos données sont chiffrées et sécurisées
-        </div>
+        <div style={{textAlign:'center', marginTop:24, fontSize:12, color:'#4B5563'}}>Vos données sont chiffrées et sécurisées</div>
       </div>
-
-      <style>{`
-        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-        input::placeholder { color: #4B5563 !important; }
-      `}</style>
+      <style>{`@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}} input::placeholder{color:#4B5563!important}`}</style>
     </div>
   );
 }
 
-function AuthGate({ children }) {
+function AuthGate() {
   const [authenticated, setAuthenticated] = useState(false);
-  const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    supabase.auth.signOut().finally(() => {
-      setAuthenticated(false);
-      setCurrentUser(null);
-      setLoading(false);
-    });
+    // Force sign out on every load — always show login screen
+    supabase.auth.signOut().finally(() => setLoading(false));
   }, []);
 
   if (loading) {
     return (
       <div style={{minHeight:'100vh', background:'#0F1117', display:'flex', alignItems:'center', justifyContent:'center', flexDirection:'column', gap:16}}>
         <div style={{width:48, height:48, background:'#2563EB', borderRadius:14, display:'flex', alignItems:'center', justifyContent:'center'}}>
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
-          </svg>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
         </div>
-        <div style={{color:'#6B7280', fontSize:14, fontFamily:"'DM Sans',sans-serif"}}>Chargement...</div>
+        <div style={{color:'#6B7280', fontSize:14}}>Chargement...</div>
       </div>
     );
   }
 
-  if (!authenticated) return <AuthScreen onAuth={(user) => { setCurrentUser(user); setAuthenticated(true); }} />;
-  return React.cloneElement(children, { onLogout: () => { setAuthenticated(false); setCurrentUser(null); }, currentUser });
+  if (!authenticated) return <AuthScreen onAuth={() => setAuthenticated(true)} />;
+  return <App onLogout={() => setAuthenticated(false)} />;
 }
 
-function App({ onLogout, currentUser }) {
+function App({ onLogout }) {
   const [page, setPage] = useState('dashboard');
-  const [accounts, setAccounts] = useState([]);
-  const [activeAccountId, setActiveAccountId] = useState(null);
-  const [savedStrategies, setSavedStrategies] = useState([]);
+
+  const [accounts, setAccounts] = useState(() => {
+    try {
+      const saved = localStorage.getItem('tj_accounts');
+      return saved ? JSON.parse(saved) : INITIAL_ACCOUNTS;
+    } catch { return INITIAL_ACCOUNTS; }
+  });
+
+  const [activeAccountId, setActiveAccountId] = useState(() => {
+    return localStorage.getItem('tj_activeAccountId') || 'acc1';
+  });
+
+  const [theme, setTheme] = useState(() => {
+    return localStorage.getItem('tj_theme') || 'light';
+  });
+
+  const [savedStrategies, setSavedStrategies] = useState(() => {
+    try {
+      const saved = localStorage.getItem('tj_strategies');
+      return saved ? JSON.parse(saved) : ['Breakout', 'Scalping', 'Swing', 'ICT', 'Mean Reversion'];
+    } catch { return ['Breakout', 'Scalping', 'Swing', 'ICT', 'Mean Reversion']; }
+  });
+
   const [editTrade, setEditTrade] = useState(null);
-  const [dbLoading, setDbLoading] = useState(true);
 
-  const [theme, setTheme] = useState(() => localStorage.getItem('tj_theme') || 'light');
+  // Persist accounts whenever they change
+  useEffect(() => {
+    try { localStorage.setItem('tj_accounts', JSON.stringify(accounts)); } catch {}
+  }, [accounts]);
 
+  // Persist active account
+  useEffect(() => {
+    localStorage.setItem('tj_activeAccountId', activeAccountId);
+  }, [activeAccountId]);
+
+  // Persist theme
   useEffect(() => {
     localStorage.setItem('tj_theme', theme);
+  }, [theme]);
+
+  // Persist strategies
+  useEffect(() => {
+    try { localStorage.setItem('tj_strategies', JSON.stringify(savedStrategies)); } catch {}
+  }, [savedStrategies]);
+
+  useEffect(() => {
     document.body.classList.toggle('dark', theme === 'dark');
   }, [theme]);
 
-  // Load all data from Supabase on mount — use currentUser passed from AuthGate
-  useEffect(() => {
-    if (currentUser) loadAllData(currentUser);
-  }, [currentUser]);
+  const activeAccount = accounts.find(a => a.id === activeAccountId) || accounts[0];
+  const trades = activeAccount.trades;
 
-  const loadAllData = async (user) => {
-    setDbLoading(true);
-    try {
-      // Load accounts
-      const { data: accs } = await supabase
-        .from('accounts')
-        .select('*')
-        .order('created_at', { ascending: true });
-
-      // Load trades
-      const { data: trds } = await supabase
-        .from('trades')
-        .select('*')
-        .order('created_at', { ascending: true });
-
-      // Load strategies
-      const { data: strats } = await supabase
-        .from('strategies')
-        .select('*')
-        .order('created_at', { ascending: true });
-
-      if (!accs || accs.length === 0) {
-        // First login — create default account
-        const { data: newAcc } = await supabase
-          .from('accounts')
-          .insert({ user_id: user.id, name: 'Compte Principal', initial_capital: 10000, currency: 'EUR' })
-          .select()
-          .single();
-
-        const defaultStrats = ['Breakout', 'Scalping', 'Swing', 'ICT', 'Mean Reversion'];
-        await supabase.from('strategies').insert(
-          defaultStrats.map(name => ({ user_id: user.id, name }))
-        );
-
-        setAccounts([{ id: newAcc.id, name: newAcc.name, initialCapital: newAcc.initial_capital, currency: newAcc.currency, trades: [] }]);
-        setActiveAccountId(newAcc.id);
-        setSavedStrategies(defaultStrats);
-      } else {
-        const mappedAccounts = accs.map(acc => ({
-          id: acc.id,
-          name: acc.name,
-          initialCapital: acc.initial_capital,
-          currency: acc.currency,
-          trades: (trds || [])
-            .filter(t => t.account_id === acc.id)
-            .map(t => ({
-              id: t.id,
-              instrument: t.instrument,
-              asset: t.asset,
-              direction: t.direction,
-              qty: t.qty,
-              entry: t.entry,
-              exit: t.exit,
-              entryDate: t.entry_date,
-              exitDate: t.exit_date,
-              pnl: t.pnl,
-              fees: t.fees,
-              strategy: t.strategy,
-              rating: t.rating,
-              notes: t.notes,
-              psychology: t.psychology,
-              manualPnl: t.manual_pnl || '',
-              pipValue: t.pip_value || '10',
-              pointValue: t.point_value || '25',
-              premium: t.premium || '',
-              images: t.images || [],
-            }))
-        }));
-
-        setAccounts(mappedAccounts);
-        setActiveAccountId(accs[0].id);
-        setSavedStrategies((strats || []).map(s => s.name));
-      }
-    } catch (err) {
-      console.error('Error loading data:', err);
-    }
-    setDbLoading(false);
+  const setTrades = (updater) => {
+    setAccounts(prev => prev.map(a => a.id === activeAccountId ? { ...a, trades: typeof updater === 'function' ? updater(a.trades) : updater } : a));
   };
 
-  // --- ACCOUNT OPERATIONS ---
-  const addAccount = async (name, initialCapital, currency) => {
-    const { data: newAcc } = await supabase
-      .from('accounts')
-      .insert({ user_id: currentUser.id, name, initial_capital: parseFloat(initialCapital) || 0, currency })
-      .select().single();
-    const mapped = { id: newAcc.id, name: newAcc.name, initialCapital: newAcc.initial_capital, currency: newAcc.currency, trades: [] };
-    setAccounts(prev => [...prev, mapped]);
-    return mapped;
-  };
-
-  const updateAccount = async (accId, changes) => {
-    await supabase.from('accounts').update({
-      name: changes.name,
-      initial_capital: parseFloat(changes.initialCapital) || 0,
-      currency: changes.currency,
-    }).eq('id', accId);
-    setAccounts(prev => prev.map(a => a.id === accId ? { ...a, ...changes } : a));
-  };
-
-  const deleteAccount = async (accId) => {
-    await supabase.from('accounts').delete().eq('id', accId);
-    setAccounts(prev => {
-      const remaining = prev.filter(a => a.id !== accId);
-      if (activeAccountId === accId && remaining.length > 0) setActiveAccountId(remaining[0].id);
-      return remaining;
-    });
-  };
-
-  // --- TRADE OPERATIONS ---
-  const setTrades = async (updater) => {
-    const user = currentUser;
-    const currentTrades = accounts.find(a => a.id === activeAccountId)?.trades || [];
-    const newTrades = typeof updater === 'function' ? updater(currentTrades) : updater;
-
-    // Find added, updated, removed trades
-    const currentIds = new Set(currentTrades.map(t => t.id));
-    const newIds = new Set(newTrades.map(t => t.id));
-
-    // Deleted
-    for (const id of currentIds) {
-      if (!newIds.has(id)) {
-        await supabase.from('trades').delete().eq('id', id);
-      }
-    }
-
-    // Added or updated
-    for (const t of newTrades) {
-      const dbRow = {
-        id: typeof t.id === 'number' ? undefined : t.id,
-        account_id: activeAccountId,
-        user_id: user.id,
-        instrument: t.instrument,
-        asset: t.asset,
-        direction: t.direction,
-        qty: t.qty,
-        entry: t.entry,
-        exit: t.exit,
-        entry_date: t.entryDate,
-        exit_date: t.exitDate,
-        pnl: t.pnl,
-        fees: t.fees,
-        strategy: t.strategy,
-        rating: t.rating,
-        notes: t.notes,
-        psychology: t.psychology,
-        manual_pnl: t.manualPnl,
-        pip_value: t.pipValue,
-        point_value: t.pointValue,
-        premium: t.premium,
-        images: t.images || [],
-      };
-
-      if (!currentIds.has(t.id)) {
-        // New trade
-        const { data: inserted } = await supabase.from('trades').insert(dbRow).select().single();
-        if (inserted) {
-          setAccounts(prev => prev.map(a => a.id === activeAccountId
-            ? { ...a, trades: a.trades.map(tr => tr.id === t.id ? { ...t, id: inserted.id } : tr) }
-            : a
-          ));
-          return;
-        }
-      } else {
-        // Updated trade
-        await supabase.from('trades').update(dbRow).eq('id', t.id);
-      }
-    }
-
-    setAccounts(prev => prev.map(a => a.id === activeAccountId ? { ...a, trades: newTrades } : a));
-  };
-
-  // --- STRATEGY OPERATIONS ---
-  const handleSetSavedStrategies = async (updater) => {
-    const user = currentUser;
-    const newStrats = typeof updater === 'function' ? updater(savedStrategies) : updater;
-
-    // Delete all and re-insert (simpler approach)
-    await supabase.from('strategies').delete().eq('user_id', user.id);
-    if (newStrats.length > 0) {
-      await supabase.from('strategies').insert(newStrats.map(name => ({ user_id: user.id, name })));
-    }
-    setSavedStrategies(newStrats);
-  };
-
-  if (dbLoading) {
-    return (
-      <div style={{minHeight:'100vh', background:'var(--bg)', display:'flex', alignItems:'center', justifyContent:'center', flexDirection:'column', gap:16}}>
-        <div style={{width:48, height:48, background:'var(--blue)', borderRadius:14, display:'flex', alignItems:'center', justifyContent:'center'}}>
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
-          </svg>
-        </div>
-        <div style={{color:'var(--muted)', fontSize:14}}>Chargement de vos données...</div>
-      </div>
-    );
-  }
-
-  const activeAccount = accounts.find(a => a.id === activeAccountId) || accounts[0] || { id: null, name: '', initialCapital: 10000, currency: 'EUR', trades: [] };
-  const trades = activeAccount.trades || [];
   const settings = { accountName: activeAccount.name, initialCapital: activeAccount.initialCapital, currency: activeAccount.currency };
 
   const navItems = [
@@ -2601,27 +2249,25 @@ function App({ onLogout, currentUser }) {
   const pageTitles = { dashboard: 'Dashboard', trades: 'Mes Trades', nouveau: editTrade ? 'Modifier Trade' : 'Nouveau Trade', analyses: 'Analyses', parametres: 'Paramètres' };
 
   const [isDesktop, setIsDesktop] = useState(() => window.innerWidth >= 768);
-
   useEffect(() => {
-    const handler = () => setIsDesktop(window.innerWidth >= 768);
-    window.addEventListener('resize', handler);
-    return () => window.removeEventListener('resize', handler);
+    const h = () => setIsDesktop(window.innerWidth >= 768);
+    window.addEventListener('resize', h);
+    return () => window.removeEventListener('resize', h);
   }, []);
 
   const pageContent = (
     <>
       {page === 'dashboard' && <Dashboard trades={trades} settings={settings} setPage={setPage} />}
       {page === 'trades' && <MesTrades trades={trades} setTrades={setTrades} setPage={setPage} setEditTrade={setEditTrade} />}
-      {page === 'nouveau' && <NouveauTrade trades={trades} setTrades={setTrades} setPage={setPage} editTrade={editTrade} savedStrategies={savedStrategies} setSavedStrategies={handleSetSavedStrategies} />}
+      {page === 'nouveau' && <NouveauTrade trades={trades} setTrades={setTrades} setPage={setPage} editTrade={editTrade} savedStrategies={savedStrategies} setSavedStrategies={setSavedStrategies} />}
       {page === 'analyses' && <Analyses trades={trades} theme={theme} />}
-      {page === 'parametres' && <Parametres accounts={accounts} setAccounts={setAccounts} activeAccountId={activeAccountId} setActiveAccountId={setActiveAccountId} theme={theme} setTheme={setTheme} savedStrategies={savedStrategies} setSavedStrategies={handleSetSavedStrategies} onLogout={onLogout} addAccount={addAccount} updateAccount={updateAccount} deleteAccount={deleteAccount} />}
+      {page === 'parametres' && <Parametres accounts={accounts} setAccounts={setAccounts} activeAccountId={activeAccountId} setActiveAccountId={setActiveAccountId} theme={theme} setTheme={setTheme} savedStrategies={savedStrategies} setSavedStrategies={setSavedStrategies} onLogout={onLogout} />}
     </>
   );
 
   if (isDesktop) {
     return (
       <div className="app">
-        {/* Desktop sidebar */}
         <aside className="desktop-sidebar">
           <div className="sidebar-brand">
             <div className="sidebar-brand-icon">↗</div>
@@ -2633,19 +2279,16 @@ function App({ onLogout, currentUser }) {
           {navItems.map(n => {
             const isActive = page === n.id;
             return (
-              <button key={n.id} className={`sidebar-nav-item ${isActive ? 'active' : ''}`}
-                onClick={() => { if(n.id === 'nouveau') setEditTrade(null); setPage(n.id); }}>
-                <span className="sidebar-nav-icon" style={{color: isActive ? 'white' : 'var(--muted)'}}>
-                  {n.svg}
-                </span>
+              <button key={n.id} className={`sidebar-nav-item ${isActive?'active':''}`}
+                onClick={() => { if(n.id==='nouveau') setEditTrade(null); setPage(n.id); }}>
+                <span className="sidebar-nav-icon" style={{color:isActive?'white':'var(--muted)'}}>{n.svg}</span>
                 {n.label}
               </button>
             );
           })}
-          {/* Account pill at bottom */}
           <div style={{marginTop:'auto', paddingTop:16}}>
-            <button onClick={() => setPage('parametres')} className="sidebar-account-pill" style={{display:'flex',alignItems:'center',gap:8,width:'100%',border:'none',cursor:'pointer',background:'var(--bg)',borderRadius:12,padding:'10px 12px',borderWidth:1,borderStyle:'solid',borderColor:'var(--border)'}}>
-              <div className="sidebar-account-dot" />
+            <button onClick={() => setPage('parametres')} style={{display:'flex',alignItems:'center',gap:8,width:'100%',border:'1px solid var(--border)',cursor:'pointer',background:'var(--bg)',borderRadius:12,padding:'10px 12px'}}>
+              <div style={{width:8,height:8,borderRadius:'50%',background:'var(--green)',flexShrink:0}} />
               <div style={{flex:1,textAlign:'left',overflow:'hidden'}}>
                 <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,fontWeight:700,color:'var(--text)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{activeAccount.name}</div>
                 <div style={{fontSize:10,color:'var(--muted)'}}>Compte actif</div>
@@ -2654,35 +2297,28 @@ function App({ onLogout, currentUser }) {
             </button>
           </div>
         </aside>
-
-        {/* Main area */}
         <div className="desktop-main">
-          {/* Top bar */}
           <div className="desktop-topbar">
-            <div style={{fontFamily:"'Syne',sans-serif", fontWeight:800, fontSize:22, color:'var(--text)'}}>{pageTitles[page]}</div>
-            <div style={{display:'flex', alignItems:'center', gap:10}}>
-              <span style={{fontSize:12, color:'var(--muted)'}}>{activeAccount.trades.length} trades</span>
-              <div style={{width:1, height:16, background:'var(--border)'}} />
-              <span style={{fontSize:12, fontWeight:600, color: (activeAccount.trades.reduce((s,t)=>s+t.pnl,0)) >= 0 ? 'var(--green)' : 'var(--red)'}}>
-                {activeAccount.trades.length ? (activeAccount.trades.reduce((s,t)=>s+t.pnl,0) >= 0 ? '+' : '') + activeAccount.trades.reduce((s,t)=>s+t.pnl,0).toFixed(2) + ' €' : '0,00 €'}
+            <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:22,color:'var(--text)'}}>{pageTitles[page]}</div>
+            <div style={{display:'flex',alignItems:'center',gap:10}}>
+              <span style={{fontSize:12,color:'var(--muted)'}}>{trades.length} trades</span>
+              <div style={{width:1,height:16,background:'var(--border)'}} />
+              <span style={{fontSize:12,fontWeight:600,color:trades.reduce((s,t)=>s+t.pnl,0)>=0?'var(--green)':'var(--red)'}}>
+                {trades.length ? (trades.reduce((s,t)=>s+t.pnl,0)>=0?'+':'')+trades.reduce((s,t)=>s+t.pnl,0).toFixed(2)+' €' : '0.00 €'}
               </span>
             </div>
           </div>
-          {/* Scrollable content */}
-          <div className="desktop-scroll">
-            {pageContent}
-          </div>
+          <div className="desktop-scroll">{pageContent}</div>
         </div>
       </div>
     );
   }
 
-  // Mobile layout
   return (
     <div className="app">
-      <div style={{padding:'14px 20px 10px', background:'var(--bg)', position:'sticky', top:0, zIndex:100, borderBottom:'1px solid var(--border)'}}>
+      <div style={{padding:'14px 20px 10px',background:'var(--bg)',position:'sticky',top:0,zIndex:100,borderBottom:'1px solid var(--border)'}}>
         <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
-          <div style={{fontFamily:"'Syne', sans-serif", fontWeight:800, fontSize:22, color:'var(--text)'}}>{pageTitles[page]}</div>
+          <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:22,color:'var(--text)'}}>{pageTitles[page]}</div>
           <button onClick={() => setPage('parametres')} style={{display:'flex',alignItems:'center',gap:6,background:'var(--card)',border:'1.5px solid var(--border)',borderRadius:20,padding:'5px 12px',cursor:'pointer',boxShadow:'var(--shadow)'}}>
             <div style={{width:8,height:8,borderRadius:'50%',background:'var(--green)',flexShrink:0}}></div>
             <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,fontWeight:600,color:'var(--text)',maxWidth:110,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{activeAccount.name}</span>
@@ -2695,11 +2331,9 @@ function App({ onLogout, currentUser }) {
         {navItems.map(n => {
           const isActive = page === n.id;
           return (
-            <button key={n.id} className={`bottom-nav-item ${isActive ? 'active' : ''}`} onClick={() => { if(n.id === 'nouveau') { setEditTrade(null); } setPage(n.id); }}>
-              <span style={{display:'flex', alignItems:'center', justifyContent:'center', width:24, height:24, color: isActive ? 'var(--blue)' : 'var(--muted)', transition:'color 0.2s'}}>
-                {n.svg}
-              </span>
-              <span className="nav-label" style={{color: isActive ? 'var(--blue)' : 'var(--muted)'}}>{n.label}</span>
+            <button key={n.id} className={`bottom-nav-item ${isActive?'active':''}`} onClick={() => { if(n.id==='nouveau') setEditTrade(null); setPage(n.id); }}>
+              <span style={{display:'flex',alignItems:'center',justifyContent:'center',width:24,height:24,color:isActive?'var(--blue)':'var(--muted)',transition:'color 0.2s'}}>{n.svg}</span>
+              <span className="nav-label" style={{color:isActive?'var(--blue)':'var(--muted)'}}>{n.label}</span>
             </button>
           );
         })}
@@ -2708,26 +2342,19 @@ function App({ onLogout, currentUser }) {
   );
 }
 
-ReactDOM.createRoot(document.getElementById('root')).render(
-  <AuthGate><App /></AuthGate>
-);
+ReactDOM.createRoot(document.getElementById('root')).render(<AuthGate />);
+
 </script>
 
 <script>
-// Register Service Worker
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js')
-      .then(reg => console.log('[PWA] Service Worker registered:', reg.scope))
-      .catch(err => console.warn('[PWA] SW registration failed:', err));
+    navigator.serviceWorker.register('./sw.js').catch(err => console.warn('[SW]', err));
   });
 }
-
-// Sync theme-color meta tag with app theme
 const observer = new MutationObserver(() => {
-  const isDark = document.body.classList.contains('dark');
   const meta = document.getElementById('theme-color-meta');
-  if (meta) meta.content = isDark ? '#0F1117' : '#2563EB';
+  if (meta) meta.content = document.body.classList.contains('dark') ? '#0F1117' : '#2563EB';
 });
 observer.observe(document.body, { attributes: true, attributeFilter: ['class'] });
 </script>
